@@ -1,7 +1,8 @@
 sessionname metatdenovo
 setenv ROOT $PWD
 # __INSERTPOINT__ This line allows a script to insert new configuration lines here.
+chdir $ROOT/conf
+screen -t conf
 chdir $ROOT
-screen -t rstudio
 screen -t man
 screen -t root

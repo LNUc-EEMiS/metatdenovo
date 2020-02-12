@@ -6,8 +6,14 @@ channels:
   - bioconda
   - defaults
 dependencies:
-  # TODO nf-core: Add required software dependencies here
-  - bioconda::fastqc=0.11.8
-  - bioconda::multiqc=1.7
+  - bioconda::fastqc=0.11.9
+  - bioconda::multiqc=1.8
   - conda-forge::r-markdown=1.1
-  - conda-forge::r-base=3.6.1
+  - conda-forge::r-base=3.6.2
+  - bioconda::trinity=2.9.1
+  - bioconda::trinotate=3.2.0
+  - bioconda::megahit=1.2.9
+  - bioconda::diamond=0.9.30
+  - bioconda::megan=6.12.3
+  - bioconda::cutadapt=2.8
+  - bioconda::trim-galore=0.6.5
