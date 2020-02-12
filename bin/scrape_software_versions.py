@@ -9,6 +9,10 @@ regexes = {
     'Nextflow': ['v_nextflow.txt', r"(\S+)"],
     'FastQC': ['v_fastqc.txt', r"FastQC v(\S+)"],
     'MultiQC': ['v_multiqc.txt', r"multiqc, version (\S+)"],
+    'Cutadapt': ['v_cutadapt.txt', r"(.*)"],
+    'Megahit': ['v_megahit.txt', r"MEGAHIT v(.*)"],
+    'Trim galore': ['v_trim_galore.txt', r"\s*version (.*)"],
+    'Trinity': ['v_trinity.txt', r"Trinity-v(.*)"],
 }
 results = OrderedDict()
 results['nf-core/metatdenovo'] = '<span style="color:#999999;\">N/A</span>'
