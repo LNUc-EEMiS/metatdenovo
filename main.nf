@@ -26,6 +26,7 @@ def helpMessage() {
 
     Options:
       --megahit			    Run assembly with Megahit.
+      --trinity			    Run assembly with Trinity. This is done in a very unsophisticated way, see usage.md.
       --singleEnd                   Specifies that the input is single end reads. Currently NOT SUPPORTED.
 
     Other options:
@@ -53,6 +54,7 @@ if (params.help) {
 
 params.outdir = 'results/'
 params.megahit = false // Run, or not, megahit assembly
+params.trinity = false // Run, or not, trinity assembly
 
 // Has the run name been specified by the user?
 //  this has the bonus effect of catching both -name and --name
@@ -291,15 +293,45 @@ process megahit {
   file(revreads) from trimmed_revreads_megahit.collect()
 
   output:
-  file "final.contigs.fna.gz"
+  file "megahit.final.contigs.fna.gz"
   file "megahit.log"
   file "megahit.tar.gz"
 
   """
   megahit -t ${task.cpus} -1 ${fwdreads.join(',')} -2 ${revreads.join(',')} > megahit.log 2>&1
-  cp megahit_out/final.contigs.fa final.contigs.fna
-  pigz -p ${task.cpus} final.contigs.fna
+  cp megahit_out/final.contigs.fa megahit.final.contigs.fna
+  pigz -p ${task.cpus} megahit.final.contigs.fna
   tar cfz megahit.tar.gz megahit_out/
+  """
+}
+
+/*
+ * STEP 5b - Trinity assembly
+ */
+process trinity {
+  cpus params.max_cpus
+
+  publishDir("${params.outdir}/trinity", mode: "copy")
+
+  when:
+  params.trinity
+
+  input:
+  file(fwdreads) from trimmed_fwdreads_trinity.collect()
+  file(revreads) from trimmed_revreads_trinity.collect()
+
+  output:
+  file "trinity.final.contigs.fna.gz"
+  file "trinity.log"
+  file "trinity.tar.gz"
+
+  """
+  unpigz -c -p ${task.cpus} ${fwdreads} > fwdreads.fastq
+  unpigz -c -p ${task.cpus} ${revreads} > revreads.fastq
+  Trinity --seqType fq --max_memory \$(echo ${task.memory}|sed 's/ *GB/G/') --left fwdreads.fastq --right revreads.fastq > trinity.log 2>&1
+  cp trinity_out_dir/Trinity.fasta trinity.final.contigs.fna
+  pigz -p ${task.cpus} trinity.final.contigs.fna
+  tar cfz trinity.tar.gz trinity_out_dir/
   """
 }
 
