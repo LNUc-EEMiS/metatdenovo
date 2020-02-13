@@ -298,7 +298,7 @@ process megahit {
   file "megahit.tar.gz"
 
   """
-  megahit -t ${task.cpus} -1 ${fwdreads.join(',')} -2 ${revreads.join(',')} > megahit.log 2>&1
+  megahit -t ${task.cpus} -1 ${fwdreads.sort().join(',')} -2 ${revreads.sort().join(',')} > megahit.log 2>&1
   cp megahit_out/final.contigs.fa megahit.final.contigs.fna
   pigz -p ${task.cpus} megahit.final.contigs.fna
   tar cfz megahit.tar.gz megahit_out/
@@ -326,8 +326,8 @@ process trinity {
   file "trinity.tar.gz"
 
   """
-  unpigz -c -p ${task.cpus} ${fwdreads} > fwdreads.fastq
-  unpigz -c -p ${task.cpus} ${revreads} > revreads.fastq
+  unpigz -c -p ${task.cpus} ${fwdreads.sort()} > fwdreads.fastq
+  unpigz -c -p ${task.cpus} ${revreads.sort()} > revreads.fastq
   Trinity --seqType fq --max_memory \$(echo ${task.memory}|sed 's/ *GB/G/') --left fwdreads.fastq --right revreads.fastq > trinity.log 2>&1
   cp trinity_out_dir/Trinity.fasta trinity.final.contigs.fna
   pigz -p ${task.cpus} trinity.final.contigs.fna
