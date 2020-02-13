@@ -17,3 +17,4 @@ dependencies:
   - bioconda::megan=6.12.3
   - bioconda::cutadapt=2.8
   - bioconda::trim-galore=0.6.5
+  - conda-forge::pigz=2.3.4

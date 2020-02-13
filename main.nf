@@ -25,6 +25,7 @@ def helpMessage() {
                                     Available: conda, docker, singularity, awsbatch, test and more.
 
     Options:
+      --megahit			    Run assembly with Megahit.
       --singleEnd                   Specifies that the input is single end reads. Currently NOT SUPPORTED.
 
     Other options:
@@ -51,6 +52,7 @@ if (params.help) {
  */
 
 params.outdir = 'results/'
+params.megahit = false // Run, or not, megahit assembly
 
 // Has the run name been specified by the user?
 //  this has the bonus effect of catching both -name and --name
@@ -256,8 +258,13 @@ process trim_galore {
   tuple name, file(reads) from read_files_trimming
 
   output:
-  tuple val(name), file("*fq.gz") into (
-    trimmed_reads_megahit, trimmed_reads_trinity
+  //tuple val(name), file("*_1.fq.gz") into (
+  file("*_1.fq.gz") into (
+    trimmed_fwdreads_megahit, trimmed_fwdreads_trinity
+  )
+  //tuple val(name), file("*_2.fq.gz") into (
+  file("*_2.fq.gz") into (
+    trimmed_revreads_megahit, trimmed_revreads_trinity
   )
   tuple val(name), file("*.trim_galore.log") into trimming_logs
   // TODO: Check how to best get this into fastqc/multiqc
@@ -267,6 +274,35 @@ process trim_galore {
   trim_galore --paired --fastqc --gzip --quality 20 $reads 2>&1 > ${name}.trim_galore.log
   """
 }
+
+/*
+ * STEP 5a - Megahit assembly
+ */
+process megahit {
+  cpus params.max_cpus
+
+  publishDir("${params.outdir}/megahit", mode: "copy")
+
+  when:
+  params.megahit
+
+  input:
+  file(fwdreads) from trimmed_fwdreads_megahit.collect()
+  file(revreads) from trimmed_revreads_megahit.collect()
+
+  output:
+  file "final.contigs.fna.gz"
+  file "megahit.log"
+  file "megahit.tar.gz"
+
+  """
+  megahit -t ${task.cpus} -1 ${fwdreads.join(',')} -2 ${revreads.join(',')} > megahit.log 2>&1
+  cp megahit_out/final.contigs.fa final.contigs.fna
+  pigz -p ${task.cpus} final.contigs.fna
+  tar cfz megahit.tar.gz megahit_out/
+  """
+}
+
 
 /*
  * Completion e-mail notification
