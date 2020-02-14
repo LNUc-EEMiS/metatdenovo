@@ -10,6 +10,7 @@ dependencies:
   - bioconda::multiqc=1.8
   - conda-forge::r-markdown=1.1
   - conda-forge::r-base=3.6.2
+  - conda-forge::pigz=2.3.4
   - bioconda::trinity=2.9.1
   - bioconda::trinotate=3.2.0
   - bioconda::megahit=1.2.9
@@ -17,4 +18,4 @@ dependencies:
   - bioconda::megan=6.12.3
   - bioconda::cutadapt=2.8
   - bioconda::trim-galore=0.6.5
-  - conda-forge::pigz=2.3.4
+  - bioconda::prodigal=2.6.3
