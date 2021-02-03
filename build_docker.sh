@@ -1,2 +1,2 @@
 #!/usr/bin/env sh
-docker build -t metatdenovo-image .
+docker build -t metatdenovo:dev .
