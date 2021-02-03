@@ -47,7 +47,7 @@
                 "trinity": {
                     "type": "boolean",
                     "description": "Run assembly with Trinity.",
-                    "help_text": "Set this parameter to use the Trinity assembly program. Suitable for eukaryotic metatranscriptomes.\nThis is currently done in a very unsophisticated way, using the default command found here:\n\nhttps://github.com/trinityrnaseq/trinityrnaseq/wiki."
+                    "help_text": "Set this parameter to use the Trinity assembly program. Suitable for eukaryotic metatranscriptomes.\nThis is currently done in an unsophisticated way, using the default command found here:\n\nhttps://github.com/trinityrnaseq/trinityrnaseq/wiki."
                 }
             }
         },
