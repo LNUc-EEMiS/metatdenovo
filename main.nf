@@ -303,9 +303,9 @@ process trinity {
   file "trinity.tar.gz"
 
   """
-  unpigz -c -p ${task.cpus} ${fwdreads.sort()} > fwdreads.fastq
-  unpigz -c -p ${task.cpus} ${revreads.sort()} > revreads.fastq
-  Trinity --seqType fq --max_memory \$(echo ${task.memory}|sed 's/ *GB/G/') --left fwdreads.fastq --right revreads.fastq > trinity.log 2>&1
+  unpigz -c -p ${task.cpus} ${fwdreads.sort().join(' ')} > fwdreads.fastq
+  unpigz -c -p ${task.cpus} ${revreads.sort().join(' ')} > revreads.fastq
+  Trinity --CPU ${task.cpus} --seqType fq --max_memory \$(echo ${task.memory}|sed 's/ *GB/G/') --left fwdreads.fastq --right revreads.fastq > trinity.log 2>&1
   cp trinity_out_dir/Trinity.fasta trinity.final.contigs.fna
   pigz -p ${task.cpus} trinity.final.contigs.fna
   tar cfz trinity.tar.gz trinity_out_dir/
