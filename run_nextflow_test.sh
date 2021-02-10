@@ -1,3 +1,3 @@
 #!/bin/sh
 
-nextflow main.nf -with-singularity metatdenovo.simg -config conf/test.config $* #--max_time=72h
+nextflow run main.nf -config docker,test $* #--max_time=72h
