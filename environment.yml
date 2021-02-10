@@ -2,24 +2,24 @@
 #   conda env create -f environment.yml
 name: nf-core-metatdenovo-1.0dev
 channels:
-  - conda-forge
   - bioconda
   - defaults
+  - conda-forge
 dependencies:
-  - conda-forge::python=3.9.1
-  - conda-forge::markdown=3.3.3
-  - conda-forge::pymdown-extensions=8.1.1
-  - conda-forge::pygments=2.7.4
-  - bioconda::fastqc=0.11.9
-  - bioconda::multiqc=1.9
-  - conda-forge::r-markdown=1.1
-  - conda-forge::r-base=4.0.3
-  - conda-forge::pigz=2.5
-  - bioconda::trinity=2.8.5
-  - bioconda::trinotate=3.2.1
-  - bioconda::megahit=1.2.9
-  - bioconda::diamond=2.0.6
-  - bioconda::megan=6.12.3
-  - bioconda::cutadapt=3.2
-  - bioconda::trim-galore=0.6.6
-  - bioconda::prodigal=2.6.3
+  - python>=3.8.5
+  - markdown>=3.3.3
+  - pymdown-extensions>=8.1.1
+  - pygments>=2.7.4
+  - fastqc>=0.11.9
+  - multiqc>=1.9
+  - r-markdown>=0.9
+  - r-base>=3.6.1
+  - pigz>=2.4
+  - trinity>=2.9.1
+  - trinotate>=3.2.1
+  - megahit>=1.2.9
+  - diamond>=2.0.6
+  - megan>=6.12.3
+  - cutadapt>=3.2
+  - trim-galore>=0.6.6
+  - prodigal>=2.6.3
