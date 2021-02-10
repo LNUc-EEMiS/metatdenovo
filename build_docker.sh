@@ -1,2 +1,2 @@
 #!/usr/bin/env sh
-docker build -t metatdenovo:dev .
+docker build -t nfcore/metatdenovo:dev .
