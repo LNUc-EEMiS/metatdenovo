@@ -15,7 +15,7 @@ dependencies:
   - conda-forge::r-markdown=1.1
   - conda-forge::r-base=4.0.3
   - conda-forge::pigz=2.5
-  - bioconda::trinity=2.11.0
+  - bioconda::trinity=2.8.5
   - bioconda::trinotate=3.2.1
   - bioconda::megahit=1.2.9
   - bioconda::diamond=2.0.6
