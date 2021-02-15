@@ -11,7 +11,7 @@
 
 def json_schema = "$projectDir/nextflow_schema.json"
 if (params.help) {
-    def command = "nextflow run nf-core/metatdenovo --input samplesheet.csv --genome GRCh37 -profile docker"
+    def command = "nextflow run nf-core/metatdenovo --input 'reads/*_R{1,2}*.fastq.gz' --megahit -profile docker"
     log.info Schema.params_help(workflow, params, json_schema, command)
     exit 0
 }
