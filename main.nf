@@ -156,53 +156,61 @@ process get_software_versions {
 /*
  * STEP 1 - FastQC
  */
-process fastqc {
-    tag "$name"
-    label 'process_medium'
-    publishDir "${params.outdir}/fastqc", mode: params.publish_dir_mode,
-        saveAs: { filename ->
-                      filename.indexOf(".zip") > 0 ? "zips/$filename" : "$filename"
-                }
+if ( ! params.skip_fastqc ) {
+    process fastqc {
+        tag "$name"
+        label 'process_medium'
+        publishDir "${params.outdir}/fastqc", mode: params.publish_dir_mode,
+            saveAs: { filename ->
+                          filename.indexOf(".zip") > 0 ? "zips/$filename" : "$filename"
+                    }
 
-    input:
-    set val(name), file(reads) from ch_read_files_fastqc
+        input:
+        set val(name), file(reads) from ch_read_files_fastqc
 
-    output:
-    file "*_fastqc.{zip,html}" into ch_fastqc_results
+        output:
+        file "*_fastqc.{zip,html}" into ch_fastqc_results
 
-    script:
-    """
-    fastqc --quiet --threads $task.cpus $reads
-    """
+        script:
+        """
+        fastqc --quiet --threads $task.cpus $reads
+        """
+    }
+} else {
+    Channel.empty().set { ch_fastqc_results }
 }
 
 /*
  * STEP 2 - MultiQC
  */
-process multiqc {
-    publishDir "${params.outdir}/MultiQC", mode: params.publish_dir_mode
+if ( ! params.skip_fastqc ) {
+    process multiqc {
+        publishDir "${params.outdir}/MultiQC", mode: params.publish_dir_mode
 
-    input:
-    file (multiqc_config) from ch_multiqc_config
-    file (mqc_custom_config) from ch_multiqc_custom_config.collect().ifEmpty([])
-    // TODO nf-core: Add in log files from your new processes for MultiQC to find!
-    file ('fastqc/*') from ch_fastqc_results.collect().ifEmpty([])
-    file ('software_versions/*') from ch_software_versions_yaml.collect()
-    file workflow_summary from ch_workflow_summary.collectFile(name: "workflow_summary_mqc.yaml")
+        input:
+        file (multiqc_config) from ch_multiqc_config
+        file (mqc_custom_config) from ch_multiqc_custom_config.collect().ifEmpty([])
+        // TODO nf-core: Add in log files from your new processes for MultiQC to find!
+        file ('fastqc/*') from ch_fastqc_results.collect().ifEmpty([])
+        file ('software_versions/*') from ch_software_versions_yaml.collect()
+        file workflow_summary from ch_workflow_summary.collectFile(name: "workflow_summary_mqc.yaml")
 
-    output:
-    file "*multiqc_report.html" into ch_multiqc_report
-    file "*_data"
-    file "multiqc_plots"
+        output:
+        file "*multiqc_report.html" into ch_multiqc_report
+        file "*_data"
+        file "multiqc_plots"
 
-    script:
-    rtitle = custom_runName ? "--title \"$custom_runName\"" : ''
-    rfilename = custom_runName ? "--filename " + custom_runName.replaceAll('\\W','_').replaceAll('_+','_') + "_multiqc_report" : ''
-    custom_config_file = params.multiqc_config ? "--config $mqc_custom_config" : ''
-    // TODO nf-core: Specify which MultiQC modules to use with -m for a faster run time
-    """
-    multiqc -f $rtitle $rfilename $custom_config_file .
-    """
+        script:
+        rtitle = custom_runName ? "--title \"$custom_runName\"" : ''
+        rfilename = custom_runName ? "--filename " + custom_runName.replaceAll('\\W','_').replaceAll('_+','_') + "_multiqc_report" : ''
+        custom_config_file = params.multiqc_config ? "--config $mqc_custom_config" : ''
+        // TODO nf-core: Specify which MultiQC modules to use with -m for a faster run time
+        """
+        multiqc -f $rtitle $rfilename $custom_config_file .
+        """
+    }
+} else {
+    Channel.empty().set { ch_multiqc_report }
 }
 
 /*

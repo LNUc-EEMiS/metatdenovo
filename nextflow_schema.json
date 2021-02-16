@@ -227,6 +227,22 @@
                     "fa_icon": "fas fa-users-cog"
                 }
             }
+        },
+        "skipping_steps": {
+            "title": "Skipping steps",
+            "type": "object",
+            "description": "",
+            "default": "",
+            "properties": {
+                "skip_fastqc": {
+                    "type": "boolean",
+                    "description": "Skips running FastQC and MultiQC"
+                },
+                "skip_trimming": {
+                    "type": "boolean",
+                    "description": "Skips trimming of read files"
+                }
+            }
         }
     },
     "allOf": [
@@ -244,6 +260,9 @@
         },
         {
             "$ref": "#/definitions/institutional_config_options"
+        },
+        {
+            "$ref": "#/definitions/skipping_steps"
         }
     ]
 }
