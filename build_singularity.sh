@@ -1,1 +1,2 @@
-singularity build metatdenovo.simg docker-daemon://metatdenovo-image:latest $*
+singularity build metatdenovo.simg docker-daemon://nfcore/metatdenovo:dev $*
+#nfcore/metatdenovo:dev
