@@ -235,31 +235,53 @@ process output_documentation {
 /*
  * STEP 4 - Trimming
  */
-process trim_galore {
-  cpus 1
-  time params.max_time
+if ( ! params.skip_trimming ) {
+    process trim_galore {
+        // TODO: This shouldn't be hardcoded here, but put in a config file
+        cpus 1
+        time params.max_time
 
-  publishDir("${params.outdir}/trimming_logs/", mode: "copy", pattern: "*.trim_galore.log")
+        publishDir("${params.outdir}/trimming_logs/", mode: "copy", pattern: "*.trim_galore.log")
 
-  input:
-  tuple name, file(reads) from ch_read_files_trimming
+        input:
+            tuple name, file(reads) from ch_read_files_trimming
 
-  output:
-  //tuple val(name), file("*_1.fq.gz") into (
-  file("*_1.fq.gz") into (
-    trimmed_fwdreads_megahit, trimmed_fwdreads_trinity
-  )
-  //tuple val(name), file("*_2.fq.gz") into (
-  file("*_2.fq.gz") into (
-    trimmed_revreads_megahit, trimmed_revreads_trinity
-  )
-  tuple val(name), file("*.trim_galore.log") into trimming_logs
-  // TODO: Check how to best get this into fastqc/multiqc
-  //file "*_fastqc.{zip,html}" into trimgalore_fastqc_reports
+        output:
+            file("*_1.fq.gz") into (
+              trimmed_fwdreads_megahit, trimmed_fwdreads_trinity
+            )
+            file("*_2.fq.gz") into (
+              trimmed_revreads_megahit, trimmed_revreads_trinity
+            )
+            tuple val(name), file("*.trim_galore.log") into trimming_logs
 
-  """
-  trim_galore --paired --fastqc --gzip --quality 20 $reads 2>&1 > ${name}.trim_galore.log
-  """
+        // TODO: Check how to best get this into fastqc/multiqc
+        //file "*_fastqc.{zip,html}" into trimgalore_fastqc_reports
+
+        """
+        trim_galore --paired --fastqc --gzip --quality 20 $reads 2>&1 > ${name}.trim_galore.log
+        """
+    }
+} else {
+    // This is perhaps not the best way, but I couldn't come up with anything else
+    // that gathered all forward reads in one channel and all reverse in another.
+    process skip_trimming {
+        input:
+            tuple name, file(reads) from ch_read_files_trimming
+
+        output:
+            file("*_R1_untrimmed.fastq.gz") into (
+              trimmed_fwdreads_megahit, trimmed_fwdreads_trinity
+            )
+            file("*_R2_untrimmed.fastq.gz") into (
+              trimmed_revreads_megahit, trimmed_revreads_trinity
+            )
+
+        """
+        mv ${reads[0]} ${name}._R1_untrimmed.fastq.gz
+        mv ${reads[1]} ${name}._R2_untrimmed.fastq.gz
+        """
+    }
 }
 
 /*
@@ -484,3 +506,5 @@ def checkHostname() {
         }
     }
 }
+
+// wim:sw=4
