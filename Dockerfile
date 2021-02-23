@@ -12,6 +12,14 @@ ENV PATH /opt/conda/envs/nf-core-metatdenovo-1.0dev/bin:$PATH
 # Dump the details of the installed packages to a file for posterity
 RUN conda env export --name nf-core-metatdenovo-1.0dev > nf-core-metatdenovo-1.0dev.yml
 
+# Install eggnog-mapper via pip, which requires gcc
+RUN apt-get update
+RUN apt-get -y install gcc
+RUN pip install eggnog-mapper
+
+# Download data for EGGNOG mapper
+RUN download_eggnog_data.py -y
+
 # Instruct R processes to use these empty files instead of clashing with a local version
 RUN touch .Rprofile
 RUN touch .Renviron
