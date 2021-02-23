@@ -296,7 +296,7 @@ process megahit {
         file(revreads) from trimmed_revreads_megahit.collect()
 
     output:
-        file "megahit.final.contigs.fna.gz"
+        file "megahit.final.contigs.fna.gz" into ch_trinotate_transdecoder
         file "megahit.log"
         file "megahit.tar.gz"
 
@@ -324,7 +324,7 @@ process trinity {
         file(revreads) from trimmed_revreads_trinity.collect()
 
     output:
-        file "trinity.final.contigs.fna.gz"
+        file "trinity.final.contigs.fna.gz" //into ch_trinotate_transdecoder
         file "trinity.log"
         file "trinity.tar.gz"
 
@@ -339,6 +339,33 @@ process trinity {
         """
 }
 
+/*
+ * STEP 6a.1 - Annotation with Trinotate: ORF calling with TransDecoder.*
+ */
+process trinotate_transdecoder {
+    label 'process_medium'
+    publishDir("${params.outdir}/trinotate", mode: "copy")
+
+    when:
+        params.trinotate
+
+    input:
+        file contigs from ch_trinotate_transdecoder
+
+    output:
+        file '*.transdecoder.faa'
+        file '*.transdecoder.gff3'
+        file '*.transdecoder.bed'
+        file '*.transdecoder.fna'
+
+    script:
+        """
+        TransDecoder.LongOrfs -t $contigs
+        TransDecoder.Predict -t $contigs
+        mv *.pep \$(basename *.pep .pep).faa
+        mv *.cds \$(basename *.cds .cds).fna
+        """
+}
 
 /*
  * Completion e-mail notification
