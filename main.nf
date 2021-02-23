@@ -128,6 +128,7 @@ Channel.from(summary.collect{ [it.key, it.value] })
  * Parse software version numbers
  */
 process get_software_versions {
+    label 'process_low'
     publishDir "${params.outdir}/pipeline_info", mode: params.publish_dir_mode,
         saveAs: { filename ->
                       if (filename.indexOf(".csv") > 0) filename
@@ -135,22 +136,21 @@ process get_software_versions {
                 }
 
     output:
-    file 'software_versions_mqc.yaml' into ch_software_versions_yaml
-    file "software_versions.csv"
+        file 'software_versions_mqc.yaml' into ch_software_versions_yaml
+        file "software_versions.csv"
 
     script:
-    // TODO nf-core: Get all tools to print their version number here
-    """
-    echo $workflow.manifest.version > v_pipeline.txt
-    echo $workflow.nextflow.version > v_nextflow.txt
-    fastqc --version > v_fastqc.txt
-    multiqc --version > v_multiqc.txt
-    cutadapt --version > v_cutadapt.txt
-    trim_galore --version | grep version > v_trim_galore.txt
-    megahit --version > v_megahit.txt
-    grep "my \\+\\\$VERSION" \$(which Trinity) |grep -v "#"|sed 's/.*"\\(.*\\)"; */\\1/' > v_trinity.txt
-    scrape_software_versions.py &> software_versions_mqc.yaml
-    """
+        """
+        echo $workflow.manifest.version > v_pipeline.txt
+        echo $workflow.nextflow.version > v_nextflow.txt
+        fastqc --version > v_fastqc.txt
+        multiqc --version > v_multiqc.txt
+        cutadapt --version > v_cutadapt.txt
+        trim_galore --version | grep version > v_trim_galore.txt
+        megahit --version > v_megahit.txt
+        grep "my \\+\\\$VERSION" \$(which Trinity) |grep -v "#"|sed 's/.*"\\(.*\\)"; */\\1/' > v_trinity.txt
+        scrape_software_versions.py &> software_versions_mqc.yaml
+        """
 }
 
 /*
@@ -166,15 +166,15 @@ if ( ! params.skip_fastqc ) {
                     }
 
         input:
-        set val(name), file(reads) from ch_read_files_fastqc
+            set val(name), file(reads) from ch_read_files_fastqc
 
         output:
-        file "*_fastqc.{zip,html}" into ch_fastqc_results
+            file "*_fastqc.{zip,html}" into ch_fastqc_results
 
         script:
-        """
-        fastqc --quiet --threads $task.cpus $reads
-        """
+            """
+            fastqc --quiet --threads $task.cpus $reads
+            """
     }
 } else {
     Channel.empty().set { ch_fastqc_results }
@@ -185,29 +185,31 @@ if ( ! params.skip_fastqc ) {
  */
 if ( ! params.skip_fastqc ) {
     process multiqc {
+        label 'process_medium'
         publishDir "${params.outdir}/MultiQC", mode: params.publish_dir_mode
 
         input:
-        file (multiqc_config) from ch_multiqc_config
-        file (mqc_custom_config) from ch_multiqc_custom_config.collect().ifEmpty([])
-        // TODO nf-core: Add in log files from your new processes for MultiQC to find!
-        file ('fastqc/*') from ch_fastqc_results.collect().ifEmpty([])
-        file ('software_versions/*') from ch_software_versions_yaml.collect()
-        file workflow_summary from ch_workflow_summary.collectFile(name: "workflow_summary_mqc.yaml")
+            file (multiqc_config) from ch_multiqc_config
+            file (mqc_custom_config) from ch_multiqc_custom_config.collect().ifEmpty([])
+            // TODO nf-core: Add in log files from your new processes for MultiQC to find!
+            // I need to learn a bit about that!
+            file ('fastqc/*') from ch_fastqc_results.collect().ifEmpty([])
+            file ('software_versions/*') from ch_software_versions_yaml.collect()
+            file workflow_summary from ch_workflow_summary.collectFile(name: "workflow_summary_mqc.yaml")
 
         output:
-        file "*multiqc_report.html" into ch_multiqc_report
-        file "*_data"
-        file "multiqc_plots"
+            file "*multiqc_report.html" into ch_multiqc_report
+            file "*_data"
+            file "multiqc_plots"
 
         script:
-        rtitle = custom_runName ? "--title \"$custom_runName\"" : ''
-        rfilename = custom_runName ? "--filename " + custom_runName.replaceAll('\\W','_').replaceAll('_+','_') + "_multiqc_report" : ''
-        custom_config_file = params.multiqc_config ? "--config $mqc_custom_config" : ''
-        // TODO nf-core: Specify which MultiQC modules to use with -m for a faster run time
-        """
-        multiqc -f $rtitle $rfilename $custom_config_file .
-        """
+            rtitle = custom_runName ? "--title \"$custom_runName\"" : ''
+            rfilename = custom_runName ? "--filename " + custom_runName.replaceAll('\\W','_').replaceAll('_+','_') + "_multiqc_report" : ''
+            custom_config_file = params.multiqc_config ? "--config $mqc_custom_config" : ''
+            // TODO nf-core: Specify which MultiQC modules to use with -m for a faster run time
+            """
+            multiqc -f $rtitle $rfilename $custom_config_file .
+            """
     }
 } else {
     Channel.empty().set { ch_multiqc_report }
@@ -217,19 +219,20 @@ if ( ! params.skip_fastqc ) {
  * STEP 3 - Output Description HTML
  */
 process output_documentation {
+    label 'process_low'
     publishDir "${params.outdir}/pipeline_info", mode: params.publish_dir_mode
 
     input:
-    file output_docs from ch_output_docs
-    file images from ch_output_docs_images
+        file output_docs from ch_output_docs
+        file images from ch_output_docs_images
 
     output:
-    file "results_description.html"
+        file "results_description.html"
 
     script:
-    """
-    markdown_to_html.py $output_docs -o results_description.html
-    """
+        """
+        markdown_to_html.py $output_docs -o results_description.html
+        """
 }
 
 /*
@@ -237,9 +240,8 @@ process output_documentation {
  */
 if ( ! params.skip_trimming ) {
     process trim_galore {
-        // TODO: This shouldn't be hardcoded here, but put in a config file
-        cpus 1
-        time params.max_time
+        label 'process_medium'
+        tag "$name"
 
         publishDir("${params.outdir}/trimming_logs/", mode: "copy", pattern: "*.trim_galore.log")
 
@@ -262,6 +264,9 @@ if ( ! params.skip_trimming ) {
     // This is perhaps not the best way, but I couldn't come up with anything else
     // that gathered all forward reads in one channel and all reverse in another.
     process skip_trimming {
+        label 'process_low'
+        tag "$name"
+
         input:
             tuple name, file(reads) from ch_read_files_trimming
 
@@ -280,58 +285,58 @@ if ( ! params.skip_trimming ) {
  * STEP 5a - Megahit assembly
  */
 process megahit {
-    cpus params.max_cpus
-
+    label 'process_high'
     publishDir("${params.outdir}/megahit", mode: "copy")
 
     when:
-    params.megahit
+        params.megahit
 
     input:
-    file(fwdreads) from trimmed_fwdreads_megahit.collect()
-    file(revreads) from trimmed_revreads_megahit.collect()
+        file(fwdreads) from trimmed_fwdreads_megahit.collect()
+        file(revreads) from trimmed_revreads_megahit.collect()
 
     output:
-    file "megahit.final.contigs.fna.gz"
-    file "megahit.log"
-    file "megahit.tar.gz"
+        file "megahit.final.contigs.fna.gz"
+        file "megahit.log"
+        file "megahit.tar.gz"
 
-    """
-    megahit -t ${task.cpus} -1 ${fwdreads.sort().join(',')} -2 ${revreads.sort().join(',')} > megahit.log 2>&1
-    cp megahit_out/final.contigs.fa megahit.final.contigs.fna
-    pigz -p ${task.cpus} megahit.final.contigs.fna
-    tar cfz megahit.tar.gz megahit_out/
-    """
+    script:
+        """
+        megahit -t ${task.cpus} -1 ${fwdreads.sort().join(',')} -2 ${revreads.sort().join(',')} > megahit.log 2>&1
+        cp megahit_out/final.contigs.fa megahit.final.contigs.fna
+        pigz -p ${task.cpus} megahit.final.contigs.fna
+        tar cfz megahit.tar.gz megahit_out/
+        """
 }
 
 /*
  * STEP 5b - Trinity assembly
  */
 process trinity {
-    cpus params.max_cpus
-
+    label 'process_high'
     publishDir("${params.outdir}/trinity", mode: "copy")
 
     when:
-    params.trinity
+        params.trinity
 
     input:
-    file(fwdreads) from trimmed_fwdreads_trinity.collect()
-    file(revreads) from trimmed_revreads_trinity.collect()
+        file(fwdreads) from trimmed_fwdreads_trinity.collect()
+        file(revreads) from trimmed_revreads_trinity.collect()
 
     output:
-    file "trinity.final.contigs.fna.gz"
-    file "trinity.log"
-    file "trinity.tar.gz"
+        file "trinity.final.contigs.fna.gz"
+        file "trinity.log"
+        file "trinity.tar.gz"
 
-    """
-    unpigz -c -p ${task.cpus} ${fwdreads.sort().join(' ')} > fwdreads.fastq
-    unpigz -c -p ${task.cpus} ${revreads.sort().join(' ')} > revreads.fastq
-    Trinity --CPU ${task.cpus} --seqType fq --max_memory \$(echo ${task.memory}|sed 's/ *GB/G/') --left fwdreads.fastq --right revreads.fastq > trinity.log 2>&1
-    cp trinity_out_dir/Trinity.fasta trinity.final.contigs.fna
-    pigz -p ${task.cpus} trinity.final.contigs.fna
-    tar cfz trinity.tar.gz trinity_out_dir/
-    """
+    script:
+        """
+        unpigz -c -p ${task.cpus} ${fwdreads.sort().join(' ')} > fwdreads.fastq
+        unpigz -c -p ${task.cpus} ${revreads.sort().join(' ')} > revreads.fastq
+        Trinity --CPU ${task.cpus} --seqType fq --max_memory \$(echo ${task.memory}|sed 's/ *GB/G/') --left fwdreads.fastq --right revreads.fastq > trinity.log 2>&1
+        cp trinity_out_dir/Trinity.fasta trinity.final.contigs.fna
+        pigz -p ${task.cpus} trinity.final.contigs.fna
+        tar cfz trinity.tar.gz trinity_out_dir/
+        """
 }
 
 
@@ -368,7 +373,6 @@ workflow.onComplete {
     email_fields['summary']['Nextflow Build'] = workflow.nextflow.build
     email_fields['summary']['Nextflow Compile Timestamp'] = workflow.nextflow.timestamp
 
-    // TODO nf-core: If not using MultiQC, strip out this code (including params.max_multiqc_email_size)
     // On success try attach the multiqc report
     def mqc_report = null
     try {
@@ -451,7 +455,6 @@ workflow.onComplete {
         checkHostname()
         log.info "-${c_purple}[nf-core/metatdenovo]${c_red} Pipeline completed with errors${c_reset}-"
     }
-
 }
 
 
