@@ -324,7 +324,7 @@ process trinity {
         file(revreads) from trimmed_revreads_trinity.collect()
 
     output:
-        file "trinity.final.contigs.fna.gz" //into ch_trinotate_transdecoder
+        file "trinity.final.contigs.fna.gz" //into ch_trinotate_transdecoder // Can't use the same name for channels yet; wait 'til DSL2?
         file "trinity.log"
         file "trinity.tar.gz"
 
