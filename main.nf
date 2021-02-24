@@ -370,6 +370,10 @@ process trinotate_transdecoder {
 /*
  * STEP 6a.2 - Annotation of Trinotate/TransDecoder ORFs with EGGNOG-mapper.
  */
+ /**
+process prepare_eggnogdb {
+}
+
 process transdecoder_emapper {
     label 'process_high'
     publishDir("${params.outdir}/trinotate", mode: "copy")
@@ -390,6 +394,7 @@ process transdecoder_emapper {
         emapper.py -i $orfs --output \$(basename $orfs .faa) 2&1 > emapper.out
         """
 }
+**/
 
 /*
  * Completion e-mail notification
