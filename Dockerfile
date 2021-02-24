@@ -17,9 +17,6 @@ RUN apt-get update
 RUN apt-get -y install gcc
 RUN pip install eggnog-mapper
 
-# Download data for EGGNOG mapper
-RUN download_eggnog_data.py -y
-
 # Instruct R processes to use these empty files instead of clashing with a local version
 RUN touch .Rprofile
 RUN touch .Renviron
