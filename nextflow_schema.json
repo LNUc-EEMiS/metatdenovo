@@ -264,5 +264,21 @@
         {
             "$ref": "#/definitions/skipping_steps"
         }
-    ]
+    ],
+    "properties": {
+        "input_paths": {
+            "type": "string",
+            "description": "Only for testing",
+            "hidden": true
+        },
+        "trinotate": {
+            "type": "boolean",
+            "description": "Run Trinotate annotation (currently just TransDecoder ORF calling)."
+        },
+        "eggnogdb": {
+            "type": "string",
+            "default": "eggnogdb",
+            "description": "Path to database files for EGGNOG-mapper, required if you want to run the program"
+        }
+    }
 }
