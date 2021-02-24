@@ -353,7 +353,7 @@ process trinotate_transdecoder {
         file contigs from ch_trinotate_transdecoder
 
     output:
-        file '*.transdecoder.faa'
+        file '*.transdecoder.faa' into ch_transdecoder_emapper
         file '*.transdecoder.gff3'
         file '*.transdecoder.bed'
         file '*.transdecoder.fna'
@@ -364,6 +364,30 @@ process trinotate_transdecoder {
         TransDecoder.Predict -t $contigs
         mv *.pep \$(basename *.pep .pep).faa
         mv *.cds \$(basename *.cds .cds).fna
+        """
+}
+
+/*
+ * STEP 6a.2 - Annotation of Trinotate/TransDecoder ORFs with EGGNOG-mapper.
+ */
+process transdecoder_emapper {
+    label 'process_high'
+    publishDir("${params.outdir}/trinotate", mode: "copy")
+
+    when:
+        params.emapper
+
+    input:
+        file orfs from ch_transdecoder_emapper
+        path eggnogdb from ch_eggnogdb_path
+
+    output:
+        'emapper.out'
+
+    script:
+        """
+        export EGGNOG_DATA_DIR=$eggnogdb
+        emapper.py -i $orfs --output \$(basename $orfs .faa) 2&1 > emapper.out
         """
 }
 
