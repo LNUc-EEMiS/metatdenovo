@@ -24,6 +24,19 @@ params.outdir = 'results/'
 params.megahit = false // Run, or not, megahit assembly
 params.trinity = false // Run, or not, trinity assembly
 
+/*
+ * EGGNOG-mapper options.
+ */
+if ( params.emapper ) {
+    if ( params.eggnogdb ) {
+    ch_eggnogdb        = Channel.fromPath("$params.eggnogdb/eggnog.db",            checkIfExists: true)
+    ch_eggnog_proteins = Channel.fromPath("$params.eggnogdb/eggnog_proteins.dmnd", checkIfExists: true)
+    ch_eggnog_taxa     = Channel.fromPath("$params.eggnogdb/eggnog.taxa.db",       checkIfExists: true)
+    } else {
+        // Call download process
+    }
+}
+
 // Has the run name been specified by the user?
 // this has the bonus effect of catching both -name and --name
 custom_runName = params.name
@@ -70,6 +83,11 @@ if (params.input_paths) {
         .fromFilePairs(params.input, size: params.single_end ? 1 : 2)
         .ifEmpty { exit 1, "Cannot find any reads matching: ${params.input}\nNB: Path needs to be enclosed in quotes!\nIf this is single-end data, please specify --single_end on the command line." }
         .into { ch_read_files_fastqc; ch_read_files_trimming }
+}
+
+// Channel for the eggnogdb path
+if ( params.eggnogdb ) {
+    ch_eggnogdb_path = Channel.fromPath(params.eggnogdb)
 }
 
 // Header log info
@@ -370,31 +388,60 @@ process trinotate_transdecoder {
 /*
  * STEP 6a.2 - Annotation of Trinotate/TransDecoder ORFs with EGGNOG-mapper.
  */
- /**
-process prepare_eggnogdb {
-}
+/**
+process download_eggnogdb {
+    label 'process_long'
 
-process transdecoder_emapper {
+    when:
+        params.mapper && params.eggnogdb
+
+    input:
+        path dbpath from ch_eggnogdb_path
+
+    output:
+        file 'eggnogdb_create.out'
+        path 'eggnog.db' into ch_transdecoder_eggnogdb
+        path 'eggnog_proteins.dmnd' into ch_transdecoder_eggnog_proteins
+        path params.eggnogdb into ch_transdecoder_eggnogdb
+
+    script:
+        if ( dbpath.exists() ) {
+            """
+            echo "Doesn't exist > eggnogdb_create.out"
+            mkdir $dbpath
+            """
+        } elseif {
+            echo download_eggnog_data.py --data_dir $dbpath -y
+            """
+}
+**/
+
+process emapper {
     label 'process_high'
-    publishDir("${params.outdir}/trinotate", mode: "copy")
+    publishDir("${params.outdir}/emapper", mode: "copy")
 
     when:
         params.emapper
 
     input:
-        file orfs from ch_transdecoder_emapper
-        path eggnogdb from ch_eggnogdb_path
+        file orfs            from ch_transdecoder_emapper
+        file eggnogdb        from ch_eggnogdb
+        file eggnog_proteins from ch_eggnog_proteins
+        file eggnog_taxa     from ch_eggnog_taxa
 
     output:
-        'emapper.out'
+        file 'emapper.out'
+        file '*.emapper.annotations'
+        file '*.emapper.seed_orthologs'
 
     script:
+        prefix = orfs.toString() - '.faa'
         """
-        export EGGNOG_DATA_DIR=$eggnogdb
-        emapper.py -i $orfs --output \$(basename $orfs .faa) 2&1 > emapper.out
+        which emapper.py
+        emapper.py --cpu ${task.cpus} --data_dir . -i $orfs --output $prefix 2>&1 > emapper.out
+        #emapper.py --data_dir . -i $orfs --output \$(basename $orfs .faa) 2&1 > emapper.out
         """
 }
-**/
 
 /*
  * Completion e-mail notification
@@ -558,4 +605,4 @@ def checkHostname() {
     }
 }
 
-// wim:sw=4
+// vim:sw=4
