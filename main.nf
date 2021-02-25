@@ -29,11 +29,11 @@ params.trinity = false // Run, or not, trinity assembly
  */
 if ( params.emapper ) {
     if ( params.eggnogdb ) {
-    ch_eggnogdb        = Channel.fromPath("$params.eggnogdb/eggnog.db",            checkIfExists: true)
-    ch_eggnog_proteins = Channel.fromPath("$params.eggnogdb/eggnog_proteins.dmnd", checkIfExists: true)
-    ch_eggnog_taxa     = Channel.fromPath("$params.eggnogdb/eggnog.taxa.db",       checkIfExists: true)
+        ch_eggnogdb        = Channel.fromPath("$params.eggnogdb/eggnog.db",            checkIfExists: true)
+        ch_eggnog_proteins = Channel.fromPath("$params.eggnogdb/eggnog_proteins.dmnd", checkIfExists: true)
+        ch_eggnog_taxa     = Channel.fromPath("$params.eggnogdb/eggnog.taxa.db",       checkIfExists: true)
     } else {
-        // Call download process
+        ch_dwnl_eggnog     = Channel.value('yes')
     }
 }
 
@@ -388,33 +388,23 @@ process trinotate_transdecoder {
 /*
  * STEP 6a.2 - Annotation of Trinotate/TransDecoder ORFs with EGGNOG-mapper.
  */
-/**
 process download_eggnogdb {
     label 'process_long'
-
-    when:
-        params.mapper && params.eggnogdb
+    publishDir("${params.outdir}/eggnogdb", mode: "copy")
 
     input:
-        path dbpath from ch_eggnogdb_path
+        val dwnl from ch_dwnl_eggnog
 
     output:
-        file 'eggnogdb_create.out'
-        path 'eggnog.db' into ch_transdecoder_eggnogdb
-        path 'eggnog_proteins.dmnd' into ch_transdecoder_eggnog_proteins
-        path params.eggnogdb into ch_transdecoder_eggnogdb
+        path 'eggnog.db'            into ch_eggnogdb
+        path 'eggnog.taxa.db'       into ch_eggnog_taxa
+        path 'eggnog_proteins.dmnd' into ch_eggnog_proteins
 
     script:
-        if ( dbpath.exists() ) {
-            """
-            echo "Doesn't exist > eggnogdb_create.out"
-            mkdir $dbpath
-            """
-        } elseif {
-            echo download_eggnog_data.py --data_dir $dbpath -y
-            """
+        """
+        download_eggnog_data.py --data_dir . -y
+        """
 }
-**/
 
 process emapper {
     label 'process_high'
@@ -439,7 +429,6 @@ process emapper {
         """
         which emapper.py
         emapper.py --cpu ${task.cpus} --data_dir . -i $orfs --output $prefix 2>&1 > emapper.out
-        #emapper.py --data_dir . -i $orfs --output \$(basename $orfs .faa) 2&1 > emapper.out
         """
 }
 
