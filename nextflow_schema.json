@@ -38,7 +38,15 @@
                     "fa_icon": "fas fa-envelope",
                     "help_text": "Set this parameter to your e-mail address to get a summary e-mail with details of the run sent to you when the workflow exits. If set in your user config file (`~/.nextflow/config`) then you don't need to specify this on the command line for every run.",
                     "pattern": "^([a-zA-Z0-9_\\-\\.]+)@([a-zA-Z0-9_\\-\\.]+)\\.([a-zA-Z]{2,5})$"
-                },
+                }
+            }
+        },
+        "processing_options": {
+            "title": "Processing options",
+            "type": "object",
+            "description": "",
+            "default": "",
+            "properties": {
                 "megahit": {
                     "type": "boolean",
                     "description": "Run assembly with Megahit.",
@@ -48,6 +56,19 @@
                     "type": "boolean",
                     "description": "Run assembly with Trinity.",
                     "help_text": "Set this parameter to use the Trinity assembly program. Suitable for eukaryotic metatranscriptomes.\nThis is currently done in an unsophisticated way, using the default command found here:\n\nhttps://github.com/trinityrnaseq/trinityrnaseq/wiki."
+                },
+                "trinotate": {
+                    "type": "boolean",
+                    "description": "Run Trinotate annotation (currently just TransDecoder ORF calling)."
+                },
+                "emapper": {
+                    "type": "boolean",
+                    "description": "Run the EGGNOG mapper"
+                },
+                "eggnogdb": {
+                    "type": "string",
+                    "default": "eggnogdb",
+                    "description": "Path to database files for EGGNOG-mapper. If left out, and --emapper specified, *large* databases will be downloaded."
                 }
             }
         },
@@ -250,6 +271,9 @@
             "$ref": "#/definitions/input_output_options"
         },
         {
+            "$ref": "#/definitions/processing_options"
+        },
+        {
             "$ref": "#/definitions/reference_genome_options"
         },
         {
@@ -270,15 +294,6 @@
             "type": "string",
             "description": "Only for testing",
             "hidden": true
-        },
-        "trinotate": {
-            "type": "boolean",
-            "description": "Run Trinotate annotation (currently just TransDecoder ORF calling)."
-        },
-        "eggnogdb": {
-            "type": "string",
-            "default": "eggnogdb",
-            "description": "Path to database files for EGGNOG-mapper, required if you want to run the program"
         }
     }
 }
