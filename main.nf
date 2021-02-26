@@ -297,6 +297,7 @@ process megahit {
 
     output:
         file "megahit.final.contigs.fna.gz" into ch_transdecoder
+        file "megahit.final.contigs.fna.gz" into ch_prokka
         file "megahit.log"
         file "megahit.tar.gz"
 
@@ -340,7 +341,43 @@ process trinity {
 }
 
 /*
- * STEP 6a.1 - Annotation with Trinotate: ORF calling with TransDecoder.*
+ * STEP 6a Annotation with Prokka
+ */
+process prokka {
+    label 'process_high'
+    publishDir("${params.outdir}", mode: "copy")
+
+    when:
+        params.prokka
+
+    input:
+        file contigs from ch_prokka
+
+    output:
+        file 'prokka/*.err.gz'
+        file 'prokka/*.faa.gz'
+        file 'prokka/*.ffn.gz'
+        file 'prokka/*.fna.gz'
+        file 'prokka/*.fsa.gz'
+        file 'prokka/*.gbk.gz'
+        file 'prokka/*.gff.gz'
+        file 'prokka/*.log.gz'
+        file 'prokka/*.sqn.gz'
+        file 'prokka/*.tbl.gz'
+        file 'prokka/*.tsv.gz'
+        file 'prokka/*.txt.gz'
+
+    script:
+        prefix = contigs.toString() - '.fna.gz'
+        """
+        unpigz -c -p $task.cpus $contigs > contigs.fna
+        prokka --cpus $task.cpus --outdir prokka --prefix $prefix contigs.fna
+        pigz -p $task.cpus prokka/*
+        """
+}
+
+/*
+ * STEP 6b ORF calling with TransDecoder.*
  */
 process transdecoder {
     label 'process_medium'
