@@ -343,65 +343,63 @@ process trinity {
 /*
  * STEP 6a Annotation with Prokka
  */
-process prokka {
-    label 'process_high'
-    publishDir("${params.outdir}", mode: "copy")
+if ( params.prokka ) {
+    process prokka {
+        label 'process_high'
+        publishDir("${params.outdir}", mode: "copy")
 
-    when:
-        params.prokka
+        input:
+            file contigs from ch_prokka
 
-    input:
-        file contigs from ch_prokka
+        output:
+            file 'prokka/*.err.gz'
+            file 'prokka/*.faa.gz' into ch_emapper
+            file 'prokka/*.ffn.gz'
+            file 'prokka/*.fna.gz'
+            file 'prokka/*.fsa.gz'
+            file 'prokka/*.gbk.gz'
+            file 'prokka/*.gff.gz'
+            file 'prokka/*.log.gz'
+            file 'prokka/*.sqn.gz'
+            file 'prokka/*.tbl.gz'
+            file 'prokka/*.tsv.gz'
+            file 'prokka/*.txt.gz'
 
-    output:
-        file 'prokka/*.err.gz'
-        file 'prokka/*.faa.gz'
-        file 'prokka/*.ffn.gz'
-        file 'prokka/*.fna.gz'
-        file 'prokka/*.fsa.gz'
-        file 'prokka/*.gbk.gz'
-        file 'prokka/*.gff.gz'
-        file 'prokka/*.log.gz'
-        file 'prokka/*.sqn.gz'
-        file 'prokka/*.tbl.gz'
-        file 'prokka/*.tsv.gz'
-        file 'prokka/*.txt.gz'
-
-    script:
-        prefix = contigs.toString() - '.fna.gz'
-        """
-        unpigz -c -p $task.cpus $contigs > contigs.fna
-        prokka --cpus $task.cpus --outdir prokka --prefix $prefix contigs.fna
-        pigz -p $task.cpus prokka/*
-        """
-}
+        script:
+            prefix = contigs.toString() - '.fna.gz'
+            """
+            unpigz -c -p $task.cpus $contigs > contigs.fna
+            prokka --cpus $task.cpus --outdir prokka --prefix $prefix contigs.fna
+            pigz -p $task.cpus prokka/*
+            """
+    }
+} 
 
 /*
  * STEP 6b ORF calling with TransDecoder.*
  */
+if ( params.trinotate ) {
 process transdecoder {
-    label 'process_medium'
-    publishDir("${params.outdir}/trinotate", mode: "copy")
+        label 'process_medium'
+        publishDir("${params.outdir}/trinotate", mode: "copy")
 
-    when:
-        params.trinotate
+        input:
+            file contigs from ch_transdecoder
 
-    input:
-        file contigs from ch_transdecoder
+        output:
+            file '*.transdecoder.faa' into ch_emapper
+            file '*.transdecoder.gff3'
+            file '*.transdecoder.bed'
+            file '*.transdecoder.fna'
 
-    output:
-        file '*.transdecoder.faa' into ch_transdecoder_emapper
-        file '*.transdecoder.gff3'
-        file '*.transdecoder.bed'
-        file '*.transdecoder.fna'
-
-    script:
-        """
-        TransDecoder.LongOrfs -t $contigs
-        TransDecoder.Predict -t $contigs
-        mv *.pep \$(basename *.pep .pep).faa
-        mv *.cds \$(basename *.cds .cds).fna
-        """
+        script:
+            """
+            TransDecoder.LongOrfs -t $contigs
+            TransDecoder.Predict -t $contigs
+            mv *.pep \$(basename *.pep .pep).faa
+            mv *.cds \$(basename *.cds .cds).fna
+            """
+    }
 }
 
 /*
@@ -439,7 +437,7 @@ if ( params.emapper ) {
         publishDir("${params.outdir}/emapper", mode: "copy")
 
         input:
-            file orfs            from ch_transdecoder_emapper
+            file orfs            from ch_emapper
             file eggnogdb        from ch_eggnogdb
             file eggnog_proteins from ch_eggnog_proteins
             file eggnog_taxa     from ch_eggnog_taxa
