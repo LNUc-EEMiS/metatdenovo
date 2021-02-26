@@ -35,6 +35,8 @@ if ( params.emapper ) {
     } else {
         ch_dwnl_eggnog     = Channel.value('yes')
     }
+} else {
+    ch_dwnl_eggnog = Channel.empty()
 }
 
 // Has the run name been specified by the user?
@@ -314,7 +316,7 @@ process megahit {
         file(revreads) from trimmed_revreads_megahit.collect()
 
     output:
-        file "megahit.final.contigs.fna.gz" into ch_trinotate_transdecoder
+        file "megahit.final.contigs.fna.gz" into ch_transdecoder
         file "megahit.log"
         file "megahit.tar.gz"
 
@@ -342,7 +344,7 @@ process trinity {
         file(revreads) from trimmed_revreads_trinity.collect()
 
     output:
-        file "trinity.final.contigs.fna.gz" //into ch_trinotate_transdecoder // Can't use the same name for channels yet; wait 'til DSL2?
+        file "trinity.final.contigs.fna.gz" //into ch_transdecoder // Can't use the same name for channels yet; wait 'til DSL2?
         file "trinity.log"
         file "trinity.tar.gz"
 
@@ -360,7 +362,7 @@ process trinity {
 /*
  * STEP 6a.1 - Annotation with Trinotate: ORF calling with TransDecoder.*
  */
-process trinotate_transdecoder {
+process transdecoder {
     label 'process_medium'
     publishDir("${params.outdir}/trinotate", mode: "copy")
 
@@ -368,7 +370,7 @@ process trinotate_transdecoder {
         params.trinotate
 
     input:
-        file contigs from ch_trinotate_transdecoder
+        file contigs from ch_transdecoder
 
     output:
         file '*.transdecoder.faa' into ch_transdecoder_emapper
