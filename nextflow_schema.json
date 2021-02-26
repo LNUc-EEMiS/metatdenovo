@@ -57,6 +57,10 @@
                     "description": "Run assembly with Trinity.",
                     "help_text": "Set this parameter to use the Trinity assembly program. Suitable for eukaryotic metatranscriptomes.\nThis is currently done in an unsophisticated way, using the default command found here:\n\nhttps://github.com/trinityrnaseq/trinityrnaseq/wiki."
                 },
+                "prokka": {
+                    "type": "boolean",
+                    "description": "Run prokka to annotate contigs. This includes both feature calling and annotation."
+                },
                 "trinotate": {
                     "type": "boolean",
                     "description": "Run Trinotate annotation (currently just TransDecoder ORF calling)."
@@ -68,7 +72,7 @@
                 "eggnogdb": {
                     "type": "string",
                     "default": "eggnogdb",
-                    "description": "Path to database files for EGGNOG-mapper. If left out, and --emapper specified, *large* databases will be downloaded."
+                    "description": "Path to database files for EGGNOG-mapper. If left out, and --emapper specified, *large* databases will be downloaded. Database files will be saved in the eggnogdb directory of the result directory for later use."
                 }
             }
         },
