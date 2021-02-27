@@ -310,7 +310,7 @@ if ( params.megahit ) {
 
         script:
             """
-            megahit -t ${task.cpus} -1 ${fwdreads.sort().join(',')} -2 ${revreads.sort().join(',')} > megahit.log 2>&1
+            megahit -t ${task.cpus} -m ${task.memory.toBytes()} -1 ${fwdreads.sort().join(',')} -2 ${revreads.sort().join(',')} > megahit.log 2>&1
             cp megahit_out/final.contigs.fa megahit.final.contigs.fna
             pigz -p ${task.cpus} megahit.final.contigs.fna
             tar cfz megahit.tar.gz megahit_out/
@@ -331,7 +331,7 @@ if ( params.trinity ) {
             file(revreads) from trimmed_revreads_trinity.collect()
 
         output:
-            file "trinity.final.contigs.fna.gz" into ch_transdecoder // Can't use the same name for channels yet; wait 'til DSL2?
+            file "trinity.final.contigs.fna.gz" into ch_transdecoder
             file "trinity.log"
             file "trinity.tar.gz"
 
@@ -339,7 +339,7 @@ if ( params.trinity ) {
             """
             unpigz -c -p ${task.cpus} ${fwdreads.sort().join(' ')} > fwdreads.fastq
             unpigz -c -p ${task.cpus} ${revreads.sort().join(' ')} > revreads.fastq
-            Trinity --CPU ${task.cpus} --seqType fq --max_memory \$(echo ${task.memory}|sed 's/ *GB/G/') --left fwdreads.fastq --right revreads.fastq > trinity.log 2>&1
+            Trinity --CPU ${task.cpus} --seqType fq --max_memory ${task.memory.toGiga()}G --left fwdreads.fastq --right revreads.fastq > trinity.log 2>&1
             cp trinity_out_dir/Trinity.fasta trinity.final.contigs.fna
             pigz -p ${task.cpus} trinity.final.contigs.fna
             tar cfz trinity.tar.gz trinity_out_dir/
