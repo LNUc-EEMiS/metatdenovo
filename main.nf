@@ -24,6 +24,12 @@ params.outdir = 'results/'
 params.megahit = false // Run, or not, megahit assembly
 params.trinity = false // Run, or not, trinity assembly
 
+// Check that the user didn't specify both --megahit and --trinity
+if ( params.megahit && params.trinity ) {
+    println "Can't be run with both --megahit and --trinity. Run the workflow twice if you want both."
+    exit 1
+}
+
 // Has the run name been specified by the user?
 // this has the bonus effect of catching both -name and --name
 custom_runName = params.name
@@ -284,60 +290,61 @@ if ( ! params.skip_trimming ) {
 /*
  * STEP 5a - Megahit assembly
  */
-process megahit {
-    label 'process_high'
-    publishDir("${params.outdir}/megahit", mode: "copy")
+if ( params.megahit ) {
+    process megahit {
+        label 'process_high'
+        publishDir("${params.outdir}/megahit", mode: "copy")
 
-    when:
-        params.megahit
+        when:
+            params.megahit
 
-    input:
-        file(fwdreads) from trimmed_fwdreads_megahit.collect()
-        file(revreads) from trimmed_revreads_megahit.collect()
+        input:
+            file(fwdreads) from trimmed_fwdreads_megahit.collect()
+            file(revreads) from trimmed_revreads_megahit.collect()
 
-    output:
-        file "megahit.final.contigs.fna.gz" into ch_transdecoder
-        file "megahit.final.contigs.fna.gz" into ch_prokka
-        file "megahit.log"
-        file "megahit.tar.gz"
+        output:
+            file "megahit.final.contigs.fna.gz" into ch_transdecoder
+            file "megahit.final.contigs.fna.gz" into ch_prokka
+            file "megahit.log"
+            file "megahit.tar.gz"
 
-    script:
-        """
-        megahit -t ${task.cpus} -1 ${fwdreads.sort().join(',')} -2 ${revreads.sort().join(',')} > megahit.log 2>&1
-        cp megahit_out/final.contigs.fa megahit.final.contigs.fna
-        pigz -p ${task.cpus} megahit.final.contigs.fna
-        tar cfz megahit.tar.gz megahit_out/
-        """
+        script:
+            """
+            megahit -t ${task.cpus} -1 ${fwdreads.sort().join(',')} -2 ${revreads.sort().join(',')} > megahit.log 2>&1
+            cp megahit_out/final.contigs.fa megahit.final.contigs.fna
+            pigz -p ${task.cpus} megahit.final.contigs.fna
+            tar cfz megahit.tar.gz megahit_out/
+            """
+    }
 }
 
 /*
  * STEP 5b - Trinity assembly
  */
-process trinity {
-    label 'process_high'
-    publishDir("${params.outdir}/trinity", mode: "copy")
+if ( params.trinity ) {
+    process trinity {
+        label 'process_high'
+        publishDir("${params.outdir}/trinity", mode: "copy")
 
-    when:
-        params.trinity
+        input:
+            file(fwdreads) from trimmed_fwdreads_trinity.collect()
+            file(revreads) from trimmed_revreads_trinity.collect()
 
-    input:
-        file(fwdreads) from trimmed_fwdreads_trinity.collect()
-        file(revreads) from trimmed_revreads_trinity.collect()
+        output:
+            file "trinity.final.contigs.fna.gz" into ch_transdecoder // Can't use the same name for channels yet; wait 'til DSL2?
+            file "trinity.log"
+            file "trinity.tar.gz"
 
-    output:
-        file "trinity.final.contigs.fna.gz" //into ch_transdecoder // Can't use the same name for channels yet; wait 'til DSL2?
-        file "trinity.log"
-        file "trinity.tar.gz"
-
-    script:
-        """
-        unpigz -c -p ${task.cpus} ${fwdreads.sort().join(' ')} > fwdreads.fastq
-        unpigz -c -p ${task.cpus} ${revreads.sort().join(' ')} > revreads.fastq
-        Trinity --CPU ${task.cpus} --seqType fq --max_memory \$(echo ${task.memory}|sed 's/ *GB/G/') --left fwdreads.fastq --right revreads.fastq > trinity.log 2>&1
-        cp trinity_out_dir/Trinity.fasta trinity.final.contigs.fna
-        pigz -p ${task.cpus} trinity.final.contigs.fna
-        tar cfz trinity.tar.gz trinity_out_dir/
-        """
+        script:
+            """
+            unpigz -c -p ${task.cpus} ${fwdreads.sort().join(' ')} > fwdreads.fastq
+            unpigz -c -p ${task.cpus} ${revreads.sort().join(' ')} > revreads.fastq
+            Trinity --CPU ${task.cpus} --seqType fq --max_memory \$(echo ${task.memory}|sed 's/ *GB/G/') --left fwdreads.fastq --right revreads.fastq > trinity.log 2>&1
+            cp trinity_out_dir/Trinity.fasta trinity.final.contigs.fna
+            pigz -p ${task.cpus} trinity.final.contigs.fna
+            tar cfz trinity.tar.gz trinity_out_dir/
+            """
+    }
 }
 
 /*
