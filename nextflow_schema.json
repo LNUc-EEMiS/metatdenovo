@@ -69,24 +69,41 @@
                     "type": "boolean",
                     "description": "Run the EGGNOG mapper"
                 },
-                "eggnogdb": {
-                    "type": "string",
-                    "default": "eggnogdb",
-                    "description": "Path to database files for EGGNOG-mapper. If left out, and --emapper specified, *large* databases will be downloaded. Database files will be saved in the eggnogdb directory of the result directory for later use."
+                "megan_taxonomy": {
+                    "type": "boolean",
+                    "description": "Run taxonomy assignment via RefSeq Diamond followed by Megan classification. Note the refseq_dmnd and refseq_daa options below. Without them, RefSeq will be downloaded and placed in the results directory.",
+                    "help_text": "Run taxonomy assignment via RefSeq Diamond followed by Megan classification.",
+                    "default": true
                 }
             }
         },
-        "reference_genome_options": {
-            "title": "Reference genome options",
+        "reference_database_options": {
+            "title": "Reference database options",
             "type": "object",
             "fa_icon": "fas fa-dna",
-            "description": "Options for the reference genome indices used to align reads.",
+            "description": "Options for reference databases for various processing steps.",
             "properties": {
                 "rrnafasta": {
                     "type": "string",
                     "fa_icon": "fas fa-font",
                     "description": "Path to FASTA file with rRNA sequences to remove from input sequences before assembly.",
                     "help_text": "Path to FASTA file with rRNA sequences to remove from input sequences before assembly."
+                },
+                "eggnogdb": {
+                    "type": "string",
+                    "default": "eggnogdb",
+                    "description": "Path to database files for EGGNOG-mapper.",
+                    "help_text": "Path to database files for EGGNOG-mapper. If left out, and --emapper specified, *large* databases will be downloaded. Database files will be saved in the eggnogdb directory of the result directory for later use."
+                },
+                "refseq_dmnd": {
+                    "type": "string",
+                    "description": "Path to RefSeq db in Diamond format",
+                    "help_text": "Path to RefSeq db in Diamond format. Without this option, a Diamond database will be built from a FASTA file, downloaded or specified via --refseq_fasta."
+                },
+                "refseq_faa": {
+                    "type": "string",
+                    "description": "Path to RefSeq db in FASTA format",
+                    "help_text": "Path to RefSeq db in FASTA format. Without this option, or --refseq_dmnd, RefSeq will be downloaded in FASTA format and formated to Diamond format. Both files will be placed in the results directory."
                 }
             }
         },
@@ -278,7 +295,7 @@
             "$ref": "#/definitions/processing_options"
         },
         {
-            "$ref": "#/definitions/reference_genome_options"
+            "$ref": "#/definitions/reference_database_options"
         },
         {
             "$ref": "#/definitions/generic_options"
