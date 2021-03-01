@@ -386,7 +386,7 @@ if ( params.prokka ) {
  * STEP 6b ORF calling with TransDecoder.*
  */
 if ( params.trinotate ) {
-process transdecoder {
+    process transdecoder {
         label 'process_medium'
         publishDir("${params.outdir}/trinotate", mode: "copy")
 
