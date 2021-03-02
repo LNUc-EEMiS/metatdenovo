@@ -500,17 +500,17 @@ if ( params.megan_taxonomy ) {
             script:
                 if ( refseq_faa.getExtension() == 'gz' ) {
                     """
-                    gunzip -c $refseq_faa | diamond makedb -d refseq_protein
+                    gunzip -c $refseq_faa | diamond makedb -d refseq_protein --threads $task.cpus
                     """
                 } 
                 else if ( refseq_faa.getExtension() == 'bz2' ) {
                     """
-                    bunzip2 -c $refseq_faa | diamond makedb -d refseq_protein
+                    bunzip2 -c $refseq_faa | diamond makedb -d refseq_protein --threads $task.cpus
                     """
                 } 
                 else {
                     """
-                    diamond makedb --in $refseq_faa -d refseq_protein
+                    diamond makedb --in $refseq_faa -d refseq_protein --threads $task.cpus
                     """
                 }
         }
