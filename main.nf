@@ -55,6 +55,12 @@ ch_multiqc_custom_config = params.multiqc_config ? Channel.fromPath(params.multi
 ch_output_docs = file("$projectDir/docs/output.md", checkIfExists: true)
 ch_output_docs_images = file("$projectDir/docs/images/", checkIfExists: true)
 
+if ( params.megan_taxonomy ) {
+    ch_megan_acc2taxa        = Channel.fromPath(params.megan_acc2taxa_map,        checkIfExists: true)
+    ch_megan_acc2eggnog      = Channel.fromPath(params.megan_acc2eggnog_map,      checkIfExists: true)
+    ch_megan_acc2interpro2go = Channel.fromPath(params.megan_acc2interpro2go_map, checkIfExists: true)
+}
+
 /*
  * Create a channel for input read files
  */
@@ -298,9 +304,6 @@ if ( params.assembler.toLowerCase() == 'megahit' ) {
         label 'process_high'
         publishDir("${params.outdir}/megahit", mode: "copy")
 
-        when:
-            params.megahit
-
         input:
             file(fwdreads) from trimmed_fwdreads_megahit.collect()
             file(revreads) from trimmed_revreads_megahit.collect()
@@ -335,6 +338,7 @@ if ( params.assembler.toLowerCase() == 'trinity' ) {
 
         output:
             file "trinity.final.contigs.fna.gz" into ch_transdecoder
+            file "trinity.final.contigs.fna.gz" into ch_prokka
             file "trinity.log"
             file "trinity.tar.gz"
 
@@ -471,26 +475,7 @@ if ( params.emapper ) {
 if ( params.megan_taxonomy ) {
     if ( ! params.refseq_dmnd && params.refseq_faa ) {
         ch_refseq_faa  = Channel.fromPath(params.refseq_faa, checkIfExists: true)
-    } else if ( ! params.refseq_faa ) {
-        process download_refseq {
-            label 'process_long'
-            publishDir("${params.outdir}/refseq", mode: "copy")
 
-            output:
-                path 'refseq_protein.faa' into ch_refseq_faa
-
-            script:
-                """
-                wget -A "refseq_protein.*.tar.gz" --mirror ftp://ftp.ncbi.nih.gov/blast/db
-                ( cd ftp.ncbi.nih.gov/blast/db; for f in refseq_protein.*.tar.gz; do echo "--> untarring \$f <--"; tar xzf \$f; done )
-                blastdbcmd -db ftp.ncbi.nih.gov/blast/db/refseq_protein -entry all -dbtype prot -out refseq_protein.faa
-                """
-        }
-    }
-    if ( params.refseq_dmnd ) {
-        ch_refseq_dmnd = Channel.fromPath(params.refseq_dmnd,  checkIfExists: true)
-    } 
-    else {
         process refseq_dmnd {
             label 'process_medium'
             publishDir("${params.outdir}/refseq", mode: "copy")
@@ -518,24 +503,88 @@ if ( params.megan_taxonomy ) {
                     """
                 }
         }
+    } 
+    else if ( params.refseq_dmnd ) {
+        ch_refseq_dmnd = Channel.fromPath(params.refseq_dmnd,  checkIfExists: true)
+    } 
+    else if ( ! params.refseq_faa ) {
+        process download_refseq {
+            label 'process_long'
+            publishDir("${params.outdir}/refseq", mode: "copy")
+
+            output:
+                path 'refseq_protein.faa' into ch_refseq_faa
+
+            script:
+                """
+                wget -A "refseq_protein.*.tar.gz" --mirror ftp://ftp.ncbi.nih.gov/blast/db
+                ( cd ftp.ncbi.nih.gov/blast/db; for f in refseq_protein.*.tar.gz; do echo "--> untarring \$f <--"; tar xzf \$f; done )
+                blastdbcmd -db ftp.ncbi.nih.gov/blast/db/refseq_protein -entry all -dbtype prot -out refseq_protein.faa
+                """
+        }
     }
-}
 
-process diamond_refseq {
-    label 'process_high'
-    publishDir("${params.outdir}/diamond-megan", mode: "copy")
+    process diamond_refseq {
+        label 'process_high'
+        publishDir("${params.outdir}/diamond-megan", mode: "copy")
 
-    input:
-        file orfs from ch_diamond_refseq
-        file db   from ch_refseq_dmnd
+        input:
+            file orfs from ch_diamond_refseq
+            file db   from ch_refseq_dmnd
 
-    output:
-        file '*.refseq.daa' into ch_refseq_daa
+        output:
+            file '*.refseq.daa' into ch_refseq_daa
 
-    script:
-        """
-        diamond blastp --threads $task.cpus -f 100 -d ${db.baseName} --query $orfs -o ${orfs.baseName}.refseq.daa
-        """
+        script:
+            """
+            diamond blastp --threads $task.cpus -f 100 -d ${db.baseName} --query $orfs -o ${orfs.baseName}.refseq.daa
+            """
+    }
+
+    process meganize {
+        label 'process_low'
+        publishDir("${params.outdir}/diamond-megan", mode: "copy")
+
+        input:
+            file daa             from ch_refseq_daa
+            file acc2taxa        from ch_megan_acc2taxa
+            file acc2eggnog      from ch_megan_acc2eggnog
+            file acc2interpro2go from ch_megan_acc2interpro2go
+
+        output:
+            file '*.abin'
+            file daa into ch_meganized_daa
+
+        script:
+            if ( acc2taxa.getExtension() == 'zip' ) {
+                """
+                unzip $acc2taxa
+                """
+            }
+            if ( acc2taxa.getExtension() == 'zip' ) {
+                """
+                unzip $acc2taxa
+                """
+            }
+            if ( acc2eggnog.getExtension() == 'zip' ) {
+                """
+                unzip $acc2eggnog
+                """
+            }
+            if ( acc2interpro2go.getExtension() == 'zip' ) {
+                """
+                unzip $acc2interpro2go
+                """
+            }
+            """
+            /opt/conda/envs/nf-core-metatdenovo-1.0dev/opt/megan-6.12.3/tools/daa-meganizer \
+              --in $daa \
+              --longReads \
+              --acc2taxa ${acc2taxa.toString() - '.zip'} \
+              --acc2eggnog ${acc2eggnog.toString() - '.zip'} \
+              --acc2interpro2go ${acc2interpro2go.toString() - '.zip'}
+            """
+    }
 }
 
 /*
