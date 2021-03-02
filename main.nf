@@ -467,7 +467,7 @@ if ( params.emapper ) {
  */
 if ( params.megan_taxonomy ) {
     if ( ! params.refseq_dmnd && params.refseq_faa ) {
-        ch_refseq_faa  = Channel.fromPath(params.refseq_fasta, checkIfExists: true)
+        ch_refseq_faa  = Channel.fromPath(params.refseq_faa, checkIfExists: true)
     } else if ( ! params.refseq_faa ) {
         process download_refseq {
             label 'process_long'
@@ -498,9 +498,21 @@ if ( params.megan_taxonomy ) {
                 file 'refseq_protein.dmnd' into ch_refseq_dmnd
 
             script:
-                """
-                diamond makedb --in $refseq_faa -d refseq_protein
-                """
+                if ( refseq_faa.getExtension() == 'gz' ) {
+                    """
+                    gunzip -c $refseq_faa | diamond makedb -d refseq_protein
+                    """
+                } 
+                else if ( refseq_faa.getExtension() == 'bz2' ) {
+                    """
+                    bunzip2 -c $refseq_faa | diamond makedb -d refseq_protein
+                    """
+                } 
+                else {
+                    """
+                    diamond makedb --in $refseq_faa -d refseq_protein
+                    """
+                }
         }
     }
 }
