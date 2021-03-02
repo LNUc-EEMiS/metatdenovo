@@ -11,7 +11,7 @@
 
 def json_schema = "$projectDir/nextflow_schema.json"
 if (params.help) {
-    def command = "nextflow run nf-core/metatdenovo --input 'reads/*_R{1,2}*.fastq.gz' --megahit -profile docker"
+    def command = "nextflow run nf-core/metatdenovo --input 'reads/*_R{1,2}*.fastq.gz' --assembler megahit -profile docker"
     log.info Schema.params_help(workflow, params, json_schema, command)
     exit 0
 }
@@ -21,12 +21,13 @@ if (params.help) {
  */
 
 params.outdir = 'results/'
-params.megahit = false // Run, or not, megahit assembly
-params.trinity = false // Run, or not, trinity assembly
 
-// Check that the user didn't specify both --megahit and --trinity
-if ( params.megahit && params.trinity ) {
-    println "Can't be run with both --megahit and --trinity. Run the workflow twice if you want both."
+ASSEMBLERS = [ megahit: true, trinity: true ]
+params.assembler = '' // Set to megahit or trinity to be meaningful
+
+// Modify when we start to support starting from an already finished assembly
+if ( ! ASSEMBLERS[params.assembler.toLowerCase()] ) {
+    println "You must choose a supported assembly program: ${ASSEMBLERS.keySet().join(', ')}"
     exit 1
 }
 
@@ -145,6 +146,7 @@ process get_software_versions {
         file 'software_versions_mqc.yaml' into ch_software_versions_yaml
         file "software_versions.csv"
 
+    // TODO: Fill in prokka, eggnog-mapper and ...
     script:
         """
         echo $workflow.manifest.version > v_pipeline.txt
@@ -266,7 +268,8 @@ if ( ! params.skip_trimming ) {
         trim_galore --paired --fastqc --gzip --quality 20 $reads 2>&1 > ${name}.trim_galore.log
         """
     }
-} else {
+} 
+else {
     // This is perhaps not the best way, but I couldn't come up with anything else
     // that gathered all forward reads in one channel and all reverse in another.
     process skip_trimming {
@@ -290,7 +293,7 @@ if ( ! params.skip_trimming ) {
 /*
  * STEP 5a - Megahit assembly
  */
-if ( params.megahit ) {
+if ( params.assembler.toLowerCase() == 'megahit' ) {
     process megahit {
         label 'process_high'
         publishDir("${params.outdir}/megahit", mode: "copy")
@@ -321,7 +324,7 @@ if ( params.megahit ) {
 /*
  * STEP 5b - Trinity assembly
  */
-if ( params.trinity ) {
+if ( params.assembler.toLowerCase() == 'trinity' ) {
     process trinity {
         label 'process_high'
         publishDir("${params.outdir}/trinity", mode: "copy")
@@ -486,7 +489,8 @@ if ( params.megan_taxonomy ) {
     }
     if ( params.refseq_dmnd ) {
         ch_refseq_dmnd = Channel.fromPath(params.refseq_dmnd,  checkIfExists: true)
-    } else {
+    } 
+    else {
         process refseq_dmnd {
             label 'process_medium'
             publishDir("${params.outdir}/refseq", mode: "copy")
