@@ -99,6 +99,21 @@
                     "type": "string",
                     "description": "Path to RefSeq db in FASTA format",
                     "help_text": "Path to RefSeq db in FASTA format. Without this option, or --refseq_dmnd, RefSeq will be downloaded in FASTA format and formated to Diamond format. Both files will be placed in the results directory."
+                },
+                "megan_acc2taxa_map": {
+                    "type": "string",
+                    "description": "Mapping file for taxonomy for MEGAN. (Old, pre ~6.20 style.)",
+                    "default": "https://software-ab.informatik.uni-tuebingen.de/download/megan6/prot_acc2tax-Jul2019X1.abin.zip"
+                },
+                "megan_acc2eggnog_map": {
+                    "type": "string",
+                    "description": "Mapping file for EGGNOGs for MEGAN. (Old, pre ~6.20 style.)",
+                    "default": "https://software-ab.informatik.uni-tuebingen.de/download/megan6/acc2eggnog-Jul2019X.abin.zip"
+                },
+                "megan_acc2interpro2go_map": {
+                    "type": "string",
+                    "description": "Mapping file for Interpro2GO for MEGAN. (Old, pre ~6.20 style.)",
+                    "default": "https://software-ab.informatik.uni-tuebingen.de/download/megan6/acc2interpro-Jul2019X.abin.zip"
                 }
             }
         },
