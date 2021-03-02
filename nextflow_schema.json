@@ -52,13 +52,9 @@
                     "description": "Which assembly program to use: megahit or trinity.",
                     "help_text": "Set this parameter to either 'megahit' or 'trinity'."
                 },
-                "prokka": {
-                    "type": "boolean",
-                    "description": "Run prokka to annotate contigs. This includes both feature calling and annotation."
-                },
-                "trinotate": {
-                    "type": "boolean",
-                    "description": "Run Trinotate annotation (currently just TransDecoder ORF calling)."
+                "annotator": {
+                    "type": "string",
+                    "description": "Main annotator to call ORFs and annotate contigs, either 'prokka' or 'trinotate' (the latter only partly supported)."
                 },
                 "emapper": {
                     "type": "boolean",

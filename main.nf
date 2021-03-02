@@ -22,12 +22,23 @@ if (params.help) {
 
 params.outdir = 'results/'
 
+// Assembly program
 ASSEMBLERS = [ megahit: true, trinity: true ]
 params.assembler = '' // Set to megahit or trinity to be meaningful
 
 // Modify when we start to support starting from an already finished assembly
 if ( ! ASSEMBLERS[params.assembler.toLowerCase()] ) {
     println "You must choose a supported assembly program: ${ASSEMBLERS.keySet().join(', ')}"
+    exit 1
+}
+
+// Assembly program
+ANNOTATORS = [ prokka: true, trinotate: true ]
+params.annotator = '' // Set to prokka or trinotate to be meaningful
+
+// Modify when we start to support starting from an already finished assembly
+if ( ! ANNOTATORS[params.annotator.toLowerCase()] ) {
+    println "You must choose a supported annotation program: ${ANNOTATORS.keySet().join(', ')}"
     exit 1
 }
 
@@ -357,7 +368,7 @@ if ( params.assembler.toLowerCase() == 'trinity' ) {
 /*
  * STEP 6a Annotation with Prokka
  */
-if ( params.prokka ) {
+if ( params.annotator.toLowerCase() == 'prokka' ) {
     process prokka {
         label 'process_high'
         publishDir("${params.outdir}", mode: "copy")
@@ -393,7 +404,7 @@ if ( params.prokka ) {
 /*
  * STEP 6b ORF calling with TransDecoder.*
  */
-if ( params.trinotate ) {
+if ( params.annotator.toLowerCase() == 'trinotate' ) {
     process transdecoder {
         label 'process_medium'
         publishDir("${params.outdir}/trinotate", mode: "copy")
