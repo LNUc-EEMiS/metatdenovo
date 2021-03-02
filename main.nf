@@ -361,6 +361,7 @@ if ( params.prokka ) {
         output:
             file 'prokka/*.err.gz'
             file 'prokka/*.faa.gz' into ch_emapper
+            file 'prokka/*.faa.gz' into ch_diamond_refseq
             file 'prokka/*.ffn.gz'
             file 'prokka/*.fna.gz'
             file 'prokka/*.fsa.gz'
@@ -395,6 +396,7 @@ if ( params.trinotate ) {
 
         output:
             file '*.transdecoder.faa' into ch_emapper
+            file '*.transdecoder.faa' into ch_diamond_refseq
             file '*.transdecoder.gff3'
             file '*.transdecoder.bed'
             file '*.transdecoder.fna'
@@ -410,15 +412,12 @@ if ( params.trinotate ) {
 }
 
 /*
- * STEP 6a.2 - Annotation of Trinotate/TransDecoder ORFs with EGGNOG-mapper.
+ * STEP 6 - EGGNOG-mapper.
  */
 if ( params.emapper && ! params.eggnogdb ) {
     process download_eggnogdb {
         label 'process_long'
         publishDir("${params.outdir}/eggnogdb", mode: "copy")
-
-        //input:
-            //val dwnl from ch_dwnl_eggnog
 
         output:
             path 'eggnog.db'            into ch_eggnogdb
@@ -461,6 +460,78 @@ if ( params.emapper ) {
             emapper.py --cpu ${task.cpus} --data_dir . -i $orfs --output $prefix 2>&1 > emapper.out
             """
     }
+}
+
+/*
+ * STEP 7 - Taxonomic annotation with Diamond/RefSeq and MEGAN.
+ */
+if ( params.megan_taxonomy ) {
+    if ( ! params.refseq_dmnd && params.refseq_faa ) {
+        ch_refseq_faa  = Channel.fromPath(params.refseq_faa, checkIfExists: true)
+    } else if ( ! params.refseq_faa ) {
+        process download_refseq {
+            label 'process_long'
+            publishDir("${params.outdir}/refseq", mode: "copy")
+
+            output:
+                path 'refseq_protein.faa' into ch_refseq_faa
+
+            script:
+                """
+                wget -A "refseq_protein.*.tar.gz" --mirror ftp://ftp.ncbi.nih.gov/blast/db
+                ( cd ftp.ncbi.nih.gov/blast/db; for f in refseq_protein.*.tar.gz; do echo "--> untarring \$f <--"; tar xzf \$f; done )
+                blastdbcmd -db ftp.ncbi.nih.gov/blast/db/refseq_protein -entry all -dbtype prot -out refseq_protein.faa
+                """
+        }
+    }
+    if ( params.refseq_dmnd ) {
+        ch_refseq_dmnd = Channel.fromPath(params.refseq_dmnd,  checkIfExists: true)
+    } else {
+        process refseq_dmnd {
+            label 'process_medium'
+            publishDir("${params.outdir}/refseq", mode: "copy")
+
+            input:
+                file refseq_faa from ch_refseq_faa
+
+            output:
+                file 'refseq_protein.dmnd' into ch_refseq_dmnd
+
+            script:
+                if ( refseq_faa.getExtension() == 'gz' ) {
+                    """
+                    gunzip -c $refseq_faa | diamond makedb -d refseq_protein --threads $task.cpus
+                    """
+                } 
+                else if ( refseq_faa.getExtension() == 'bz2' ) {
+                    """
+                    bunzip2 -c $refseq_faa | diamond makedb -d refseq_protein --threads $task.cpus
+                    """
+                } 
+                else {
+                    """
+                    diamond makedb --in $refseq_faa -d refseq_protein --threads $task.cpus
+                    """
+                }
+        }
+    }
+}
+
+process diamond_refseq {
+    label 'process_high'
+    publishDir("${params.outdir}/diamond-megan", mode: "copy")
+
+    input:
+        file orfs from ch_diamond_refseq
+        file db   from ch_refseq_dmnd
+
+    output:
+        file '*.refseq.daa' into ch_refseq_daa
+
+    script:
+        """
+        diamond blastp --threads $task.cpus -f 100 -d ${db.baseName} --query $orfs -o ${orfs.baseName}.refseq.daa
+        """
 }
 
 /*
