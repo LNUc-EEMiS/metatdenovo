@@ -32,7 +32,7 @@ if ( ! ASSEMBLERS[params.assembler.toLowerCase()] ) {
     exit 1
 }
 
-// Assembly program
+// Annotation/gene calling program
 ANNOTATORS = [ prokka: true, trinotate: true ]
 params.annotator = '' // Set to prokka or trinotate to be meaningful
 
@@ -41,6 +41,9 @@ if ( ! ANNOTATORS[params.annotator.toLowerCase()] ) {
     println "You must choose a supported annotation program: ${ANNOTATORS.keySet().join(', ')}"
     exit 1
 }
+
+// Turn bbmap false when skip_bbmap set to true, else keep the value
+params.bbmap = params.skip_bbmap ? false : params.bbmap
 
 // Has the run name been specified by the user?
 // this has the bonus effect of catching both -name and --name

@@ -294,6 +294,10 @@
                 "skip_trimming": {
                     "type": "boolean",
                     "description": "Skips trimming of read files"
+                },
+                "skip_bbmap": {
+                    "type": "boolean",
+                    "description": "Skips quantifying with bbmap"
                 }
             }
         }
