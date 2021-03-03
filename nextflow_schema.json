@@ -65,6 +65,11 @@
                     "description": "Run taxonomy assignment via RefSeq Diamond followed by Megan classification. Note the refseq_dmnd and refseq_daa options below. Without them, RefSeq will be downloaded and placed in the results directory.",
                     "help_text": "Run taxonomy assignment via RefSeq Diamond followed by Megan classification.",
                     "default": true
+                },
+                "bbmap": {
+                    "type": "boolean",
+                    "description": "UseBBMap to quantify ORs over samples",
+                    "default": true
                 }
             }
         },
