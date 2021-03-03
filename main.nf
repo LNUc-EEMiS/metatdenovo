@@ -81,19 +81,19 @@ if (params.input_paths) {
             .from(params.input_paths)
             .map { row -> [ row[0], [ file(row[1][0], checkIfExists: true) ] ] }
             .ifEmpty { exit 1, "params.input_paths was empty - no input files supplied" }
-            .into { ch_read_files_fastqc; ch_read_files_trimming }
+            .into { ch_read_files_fastqc; ch_read_files_trimming; ch_read_files_bbmap }
     } else {
         Channel
             .from(params.input_paths)
             .map { row -> [ row[0], [ file(row[1][0], checkIfExists: true), file(row[1][1], checkIfExists: true) ] ] }
             .ifEmpty { exit 1, "params.input_paths was empty - no input files supplied" }
-            .into { ch_read_files_fastqc; ch_read_files_trimming }
+            .into { ch_read_files_fastqc; ch_read_files_trimming; ch_read_files_bbmap }
     }
 } else {
     Channel
         .fromFilePairs(params.input, size: params.single_end ? 1 : 2)
         .ifEmpty { exit 1, "Cannot find any reads matching: ${params.input}\nNB: Path needs to be enclosed in quotes!\nIf this is single-end data, please specify --single_end on the command line." }
-        .into { ch_read_files_fastqc; ch_read_files_trimming }
+        .into { ch_read_files_fastqc; ch_read_files_trimming; ch_read_files_bbmap }
 }
 
 // Header log info
@@ -322,6 +322,7 @@ if ( params.assembler.toLowerCase() == 'megahit' ) {
         output:
             file "megahit.final.contigs.fna.gz" into ch_transdecoder
             file "megahit.final.contigs.fna.gz" into ch_prokka
+            file "megahit.final.contigs.fna.gz" into ch_contigs_bbmap
             file "megahit.log"
             file "megahit.tar.gz"
 
@@ -350,6 +351,7 @@ if ( params.assembler.toLowerCase() == 'trinity' ) {
         output:
             file "trinity.final.contigs.fna.gz" into ch_transdecoder
             file "trinity.final.contigs.fna.gz" into ch_prokka
+            file "trinity.final.contigs.fna.gz" into ch_contigs_bbmap
             file "trinity.log"
             file "trinity.tar.gz"
 
@@ -598,6 +600,32 @@ if ( params.megan_taxonomy ) {
             /opt/conda/envs/nf-core-metatdenovo-1.0dev/opt/megan-6.12.3/tools/daa2info -i $daa -r2c INTERPRO2GO | gzip -c > ${daa.toString() - '.daa'}.reads2ip2go.tsv.gz
             """
     }
+}
+
+/*
+ * STEP 8a - quantification with BBMap
+ */
+process bbmap {
+    label 'process_high'
+    tag "$name"
+    publishDir("${params.outdir}/bbmap", mode: "copy")
+
+    when:
+        params.bbmap
+
+    input:
+        path contigs from ch_contigs_bbmap
+        tuple name, file(reads) from ch_read_files_bbmap
+
+    output:
+        path "${name}.bbmap.bam"
+        path "${name}.bbmap.out"
+        //path '*.bai'
+
+    script:
+        """
+        bbmap.sh unpigz=t threads=$task.cpus nodisk=t ref=$contigs in=${reads[0]} in2=${reads[1]} out=stdout 2>${name}.bbmap.out | samtools view -Sb | samtools sort > ${name}.bbmap.bam
+        """
 }
 
 /*
