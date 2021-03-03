@@ -536,7 +536,7 @@ if ( params.megan_taxonomy ) {
 
         script:
             """
-            diamond blastp --threads $task.cpus -f 100 -d ${db.baseName} --query $orfs -o ${orfs.toString() - '.faa'}.refseq.daa
+            diamond blastp --threads $task.cpus -f 100 -d ${db.baseName} --query $orfs -o ${orfs.baseName}.refseq.daa
             """
     }
 
