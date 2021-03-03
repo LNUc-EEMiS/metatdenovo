@@ -555,27 +555,11 @@ if ( params.megan_taxonomy ) {
             file daa into ch_meganized_daa
 
         script:
-            if ( acc2taxa.getExtension() == 'zip' ) {
-                """
-                unzip $acc2taxa
-                """
-            }
-            if ( acc2taxa.getExtension() == 'zip' ) {
-                """
-                unzip $acc2taxa
-                """
-            }
-            if ( acc2eggnog.getExtension() == 'zip' ) {
-                """
-                unzip $acc2eggnog
-                """
-            }
-            if ( acc2interpro2go.getExtension() == 'zip' ) {
-                """
-                unzip $acc2interpro2go
-                """
-            }
+            unzip  = ( acc2taxa.getExtension()        == 'zip' ) ? "unzip $acc2taxa" : ""
+            unzip += ( acc2eggnog.getExtension()      == 'zip' ) ? "; unzip $acc2eggnog" : ""
+            unzip += ( acc2interpro2go.getExtension() == 'zip' ) ? "; unzip $acc2interpro2go" : ""
             """
+            $unzip
             /opt/conda/envs/nf-core-metatdenovo-1.0dev/opt/megan-6.12.3/tools/daa-meganizer \
               --in $daa \
               --longReads \
