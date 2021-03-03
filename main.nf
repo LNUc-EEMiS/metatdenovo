@@ -563,37 +563,39 @@ if ( params.megan_taxonomy ) {
             file acc2interpro2go from ch_megan_acc2interpro2go
 
         output:
-            file '*.abin'
+            path('*.abin', includeInputs: true)
             file daa into ch_meganized_daa
 
         script:
-            if ( acc2taxa.getExtension() == 'zip' ) {
-                """
-                unzip $acc2taxa
-                """
-            }
-            if ( acc2taxa.getExtension() == 'zip' ) {
-                """
-                unzip $acc2taxa
-                """
-            }
-            if ( acc2eggnog.getExtension() == 'zip' ) {
-                """
-                unzip $acc2eggnog
-                """
-            }
-            if ( acc2interpro2go.getExtension() == 'zip' ) {
-                """
-                unzip $acc2interpro2go
-                """
-            }
+            unzip  = ( acc2taxa.getExtension()        == 'zip' ) ? "unzip $acc2taxa" : ""
+            unzip += ( acc2eggnog.getExtension()      == 'zip' ) ? "; unzip $acc2eggnog" : ""
+            unzip += ( acc2interpro2go.getExtension() == 'zip' ) ? "; unzip $acc2interpro2go" : ""
             """
+            $unzip
             /opt/conda/envs/nf-core-metatdenovo-1.0dev/opt/megan-6.12.3/tools/daa-meganizer \
               --in $daa \
               --longReads \
               --acc2taxa ${acc2taxa.toString() - '.zip'} \
               --acc2eggnog ${acc2eggnog.toString() - '.zip'} \
               --acc2interpro2go ${acc2interpro2go.toString() - '.zip'}
+            """
+    }
+
+    process megan_export {
+        label 'process_low'
+        publishDir("${params.outdir}/diamond-megan", mode: "copy")
+
+        input:
+            file daa             from ch_meganized_daa
+
+        output:
+            file '*.tsv.gz'
+
+        script:
+            """
+            /opt/conda/envs/nf-core-metatdenovo-1.0dev/opt/megan-6.12.3/tools/daa2info -i $daa -r2c Taxonomy    | gzip -c > ${daa.toString() - '.daa'}.reads2taxonids.tsv.gz
+            /opt/conda/envs/nf-core-metatdenovo-1.0dev/opt/megan-6.12.3/tools/daa2info -i $daa -r2c EGGNOG      | gzip -c > ${daa.toString() - '.daa'}.reads2eggnogs.tsv.gz
+            /opt/conda/envs/nf-core-metatdenovo-1.0dev/opt/megan-6.12.3/tools/daa2info -i $daa -r2c INTERPRO2GO | gzip -c > ${daa.toString() - '.daa'}.reads2ip2go.tsv.gz
             """
     }
 }

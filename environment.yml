@@ -24,3 +24,4 @@ dependencies:
   - megan=6.12.3
   - prokka=1.14.6
   - blast=2.10.1
+  - unzip=6.0
