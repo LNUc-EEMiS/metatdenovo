@@ -389,12 +389,13 @@ if ( params.annotator.toLowerCase() == 'prokka' ) {
             file 'prokka/*.fna.gz'
             file 'prokka/*.fsa.gz'
             file 'prokka/*.gbk.gz'
-            file 'prokka/*.gff.gz'
+            file 'prokka/*.gff.gz' into ch_gff_bbmap
             file 'prokka/*.log.gz'
             file 'prokka/*.sqn.gz'
             file 'prokka/*.tbl.gz'
             file 'prokka/*.tsv.gz'
             file 'prokka/*.txt.gz'
+            val  'ID'              into ch_id_bbmap
 
         script:
             prefix = contigs.toString() - '.fna.gz'
@@ -418,9 +419,9 @@ if ( params.annotator.toLowerCase() == 'trinotate' ) {
             file contigs from ch_transdecoder
 
         output:
-            file '*.transdecoder.faa' into ch_emapper
-            file '*.transdecoder.faa' into ch_diamond_refseq
-            file '*.transdecoder.gff3'
+            file '*.transdecoder.faa'  into ch_emapper
+            file '*.transdecoder.faa'  into ch_diamond_refseq
+            file '*.transdecoder.gff3' into ch_gff_bbmap
             file '*.transdecoder.bed'
             file '*.transdecoder.fna'
 
@@ -621,13 +622,40 @@ process bbmap {
         tuple name, file(reads) from ch_read_files_bbmap
 
     output:
-        path "${name}.bbmap.bam"
+        path "${name}.bbmap.bam" into ch_bbmap_bam
         path "${name}.bbmap.out"
         //path '*.bai'
 
     script:
+        // The trimreaddescriptions=t is required by featureCount
         """
-        bbmap.sh unpigz=t threads=$task.cpus nodisk=t ref=$contigs in=${reads[0]} in2=${reads[1]} out=stdout 2>${name}.bbmap.out | samtools view -Sb | samtools sort > ${name}.bbmap.bam
+        bbmap.sh trimreaddescriptions=t unpigz=t threads=$task.cpus nodisk=t ref=$contigs in=${reads[0]} in2=${reads[1]} out=stdout 2>${name}.bbmap.out | samtools view -Sb | samtools sort > ${name}.bbmap.bam
+        """
+}
+
+process bbmap_feature_count {
+    label 'process_high'
+    publishDir("${params.outdir}/bbmap", mode: "copy")
+
+    when:
+        params.bbmap
+
+    input:
+        val  id   from ch_id_bbmap
+        path gff  from ch_gff_bbmap
+        path bams from ch_bbmap_bam.collect()
+
+    output:
+        path 'bbmap.fc.CDS.tsv.gz'
+        path 'bbmap.fc.out'
+
+    script:
+        unzip = gff.getExtension() == 'gz' ? "unpigz -c -p $task.cpus $gff > ${gff.baseName}" : ""
+        gffn  = gff.getExtension() == 'gz' ? gff.baseName : gff
+        """
+        $unzip
+        featureCounts -T $task.cpus -t CDS -g $id -a $gffn $bams -o bbmap.fc.CDS.tsv 2>&1 > bbmap.fc.out
+        pigz -p $task.cpus bbmap.fc.CDS.tsv
         """
 }
 
