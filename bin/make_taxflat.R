@@ -18,13 +18,17 @@ suppressPackageStartupMessages(library(tidyr))
 suppressPackageStartupMessages(library(purrr))
 suppressPackageStartupMessages(library(stringr))
 
-SCRIPT_VERSION = "0.1"
+SCRIPT_VERSION = "0.9"
 
 options(warn = 1)
 
 # Get arguments
 # For testing opt = list(options = list(verbose = TRUE), args = c('nodes.dmp', 'names.dmp', 'new_taxflat.tsv.gz'))
 option_list = list(
+  make_option(
+    c("-t", "--threads"), default=1, 
+    help="Set number of cpu threads"
+  ),
   make_option(
     c("-v", "--verbose"), action="store_true", default=FALSE, 
     help="Print progress messages"
@@ -64,6 +68,9 @@ logmsg    = function(msg, llevel='INFO') {
     )
   }
 }
+
+setDTthreads(opt$options$threads)
+
 logmsg(sprintf("Reading nodes from %s", opt$args[1]))
 nodes <- fread(
   opt$args[1],
@@ -81,26 +88,6 @@ names <- fread(
 ) %>% lazy_dt() %>%
   transmute(tax_id, name = str_remove_all(name_txt, '\t'), name_class = str_remove_all(name_class, '\t')) %>%
   as.data.table()
-
-###flat <- lazy_dt(nodes) %>% 
-###  filter(tax_id != parent, parent == 1) %>% 
-###  select(-parent) %>% 
-###  inner_join(lazy_dt(names) %>% filter(name_class == 'scientific name') %>% select(-name_class), by = 'tax_id') %>%
-###  as.data.table() %>%
-###  dcast(tax_id ~ rank, value.var = 'name')
-###
-###t <- flat %>% inner_join(
-###  lazy_dt(nodes) %>%
-###    inner_join(lazy_dt(names) %>% filter(name_class == 'scientific name') %>% select(-name_class), by = 'tax_id') %>%
-###    rename(new_tax_id = tax_id) %>%
-###    as.data.table() %>%
-###    dcast(new_tax_id + parent ~ rank, value.var = 'name'),
-###  by = c('tax_id' = 'parent')
-###) %>%
-###  select(!starts_with('no rank')) %>%
-###  select(!starts_with('no_rank')) %>%
-###  select(!starts_with('sub')) %>%
-###  as.data.table()
 
 # 0. Create a table joining nodes and names, and with a name column containing the rank
 nodes_names <- lazy_dt(nodes) %>%
