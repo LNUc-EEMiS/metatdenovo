@@ -419,11 +419,12 @@ if ( params.annotator.toLowerCase() == 'trinotate' ) {
             file contigs from ch_transdecoder
 
         output:
-            file '*.transdecoder.faa'  into ch_emapper
-            file '*.transdecoder.faa'  into ch_diamond_refseq
-            file '*.transdecoder.gff3' into ch_gff_bbmap
-            file '*.transdecoder.bed'
-            file '*.transdecoder.fna'
+            file '*.transdecoder.faa.gz'  into ch_emapper
+            file '*.transdecoder.faa.gz'  into ch_diamond_refseq
+            file '*.transdecoder.gff3.gz' into ch_gff_bbmap
+            file '*.transdecoder.bed.gz'
+            file '*.transdecoder.fna.gz'
+            val  'ID'                     into ch_id_bbmap
 
         script:
             """
@@ -431,6 +432,7 @@ if ( params.annotator.toLowerCase() == 'trinotate' ) {
             TransDecoder.Predict -t $contigs
             mv *.pep \$(basename *.pep .pep).faa
             mv *.cds \$(basename *.cds .cds).fna
+            pigz -p $task.cpus *.transdecoder.*
             """
     }
 }
@@ -650,11 +652,9 @@ process bbmap_feature_count {
         path 'bbmap.fc.out'
 
     script:
-        unzip = gff.getExtension() == 'gz' ? "unpigz -c -p $task.cpus $gff > ${gff.baseName}" : ""
-        gffn  = gff.getExtension() == 'gz' ? gff.baseName : gff
         """
-        $unzip
-        featureCounts -T $task.cpus -t CDS -g $id -a $gffn $bams -o bbmap.fc.CDS.tsv 2>&1 > bbmap.fc.out
+        unpigz -c -p $task.cpus $gff > ${gff.baseName}
+        featureCounts -T $task.cpus -t CDS -g $id -a ${gff.baseName} $bams -o bbmap.fc.CDS.tsv 2>&1 > bbmap.fc.out
         pigz -p $task.cpus bbmap.fc.CDS.tsv
         """
 }
