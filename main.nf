@@ -650,7 +650,7 @@ process bbmap_feature_count {
         path bams from ch_bbmap_bam.collect()
 
     output:
-        path 'bbmap.fc.CDS.tsv.gz'
+        path 'bbmap.fc.CDS.tsv.gz' into ch_bbmap_fc
         path 'bbmap.fc.out'
 
     script:
@@ -666,6 +666,33 @@ process bbmap_feature_count {
  */
 
 if ( params.summary ) {
+    if ( params.bbmap ) {
+        process sum_bbmap_counts {
+            label 'process_medium'
+            publishDir("${params.outdir}/summary", mode: "copy")
+
+            input:
+                path bbmapfc from ch_bbmap_fc
+
+            output:
+                path 'bbmap_counts.tsv.gz'
+
+            script:
+                """
+                #!/usr/bin/env Rscript
+                library(data.table)
+                library(dtplyr)
+                library(dplyr, warn.conflicts = FALSE)
+                fread('$bbmapfc') %>%
+                    melt(measure.vars = 7:ncol(.), variable.name = 'sample', value.name = 'count') %>% lazy_dt() %>%
+                    mutate(sample = stringr::str_remove(sample, '.bbmap.bam'), r = count/Length) %>%
+                    group_by(sample) %>% mutate(tpm = r/sum(r) * 1e6) %>% ungroup() %>%
+                    select(-r) %>% as.data.table() %>%
+                    fwrite('bbmap_counts.tsv.gz', sep = '\t', row.names = FALSE)
+                """
+        }
+    }
+
     if ( params.ncbitaxonomy ) {
         ch_ncbi_taxonomy = Channel.fromPath(params.ncbitaxonomy)
     }
