@@ -130,6 +130,21 @@
                     "type": "string",
                     "description": "NCBI's 'taxdump.tar.gz'. Default 'https://ftp.ncbi.nlm.nih.gov/pub/taxonomy/taxdump.tar.gz'.",
                     "help_text": ""
+                },
+                "gtdb_taxonomy": {
+                    "type": "string",
+                    "description": "TSV file with GTDB taxonomy for both Archaea and Bacteria, including ncbi_taxid.",
+                    "help_text": ""
+                },
+                "gtdb_archaea_metadata_targz": {
+                    "type": "string",
+                    "description": "GTDB's metadata tar ball for Archaea. Default 'https://data.gtdb.ecogenomic.org/releases/latest/ar122_metadata.tar.gz'.",
+                    "help_text": ""
+                },
+                "gtdb_bacteria_metadata_targz": {
+                    "type": "string",
+                    "description": "GTDB's metadata tar ball for Bacteria. Default 'https://data.gtdb.ecogenomic.org/releases/latest/bac120_metadata.tar.gz'.",
+                    "help_text": ""
                 }
             }
         },
