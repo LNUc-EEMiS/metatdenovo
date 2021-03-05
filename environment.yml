@@ -35,3 +35,4 @@ dependencies:
   - r-dplyr=1.0.4
   - r-stringr=1.4.0
   - r-r.utils=2.8.0
+  - r-tidyr=0.8.3
