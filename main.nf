@@ -598,7 +598,8 @@ if ( params.megan_taxonomy ) {
 
         output:
             file '*.tsv.gz'
-            path '*.reads2taxonids.tsv.gz' into ch_megan_taxonomy
+            path '*.reads2taxonids.tsv.gz' into ch_megan_taxonomy_ncbi
+            path '*.reads2taxonids.tsv.gz' into ch_megan_taxonomy_gtdb
 
         script:
             """
@@ -694,11 +695,11 @@ if ( params.summary ) {
         publishDir("${params.outdir}/summary", mode: "copy")
 
         input:
-            path megantaxa from ch_megan_taxonomy
+            path megantaxa from ch_megan_taxonomy_ncbi
             path ncbi_taxflat from ch_ncbi_taxonomy
 
         output:
-            path 'megan_refseq_taxonomy.tsv.gz'
+            path 'megan_refseq_ncbi_taxonomy.tsv.gz'
 
         script:
             """
@@ -709,7 +710,70 @@ if ( params.summary ) {
             fread('$megantaxa', col.names = c('orf', 'tax_id')) %>% lazy_dt() %>%
               left_join(fread('$ncbi_taxflat') %>% lazy_dt(), by = 'tax_id') %>%
               as.data.table() %>%
-              fwrite('megan_refseq_taxonomy.tsv.gz', sep = '\t', row.names = FALSE)
+              fwrite('megan_refseq_ncbi_taxonomy.tsv.gz', sep = '\t', row.names = FALSE)
+            """
+    }
+
+    if ( params.gtdb_taxonomy ) {
+        ch_gtdb_taxonomy = Channel.fromPath(params.gtdb_taxonomy)
+    }
+    else {
+        ch_arctar = Channel.fromPath(params.gtdb_archaea_metadata_targz)
+        ch_bactar = Channel.fromPath(params.gtdb_bacteria_metadata_targz)
+
+        process gtdb_taxtable {
+            label 'process_low'
+            publishDir("${params.outdir}/gtdb", mode: "copy")
+
+            input:
+                path arctar from ch_arctar
+                path bactar from ch_bactar
+
+            output:
+                path 'gtdb_metadata.tsv.gz' into ch_gtdb_taxonomy
+
+            script:
+                """
+                #!/usr/bin/env Rscript
+                library(data.table)
+                library(dplyr, warn.conflicts = FALSE)
+                # Read and stack the archeal and bacterial metadata tables,
+                funion(
+                  fread(cmd = 'tar xzOf $arctar', colClasses = c('character')),
+                  fread(cmd = 'tar xzOf $bactar', colClasses = c('character'))
+                ) %>% 
+                    as_tibble() %>%
+                    # keep only the interesting fields, and remove leading rank letters from the taxonomy string
+                    transmute(gtdb_accession = accession, gtdb_taxonomy = stringr::str_remove_all(gtdb_taxonomy, '[a-z]__'), ncbi_taxid) %>%
+                    # separate the taxonomy string into one field per rank
+                    tidyr::separate(gtdb_taxonomy, c('gtdb_domain', 'gtdb_phylum', 'gtdb_class', 'gtdb_order', 'gtdb_family', 'gtdb_genus', 'gtdb_species'), sep = ';') %>%
+                    fwrite('gtdb_metadata.tsv.gz', sep = '\t', row.names = FALSE)
+                """
+        }
+    }
+
+    process gtdb_taxonomy {
+        label 'process_low'
+        publishDir("${params.outdir}/summary", mode: "copy")
+
+        input:
+            path gtdbtax from ch_gtdb_taxonomy
+            path megantaxa from ch_megan_taxonomy_gtdb
+
+        output:
+            path 'megan_refseq_gtdb_taxonomy.tsv.gz'
+
+        script:
+            """
+            #!/usr/bin/env Rscript
+            library(data.table)
+            library(dtplyr)
+            library(dplyr, warn.conflicts = FALSE)
+            fread('$megantaxa', col.names = c('orf', 'tax_id')) %>% lazy_dt() %>%
+              left_join(fread('$gtdbtax') %>% lazy_dt() %>% mutate(ncbi_taxid = as.integer(ncbi_taxid)), by = c('tax_id' = 'ncbi_taxid')) %>%
+              rename(ncbi_tax_id = tax_id) %>%
+              as.data.table() %>%
+              fwrite('megan_refseq_gtdb_taxonomy.tsv.gz', sep = '\t', row.names = FALSE)
             """
     }
 }
