@@ -9,13 +9,9 @@
 # Author: daniel.lundin@lnu.se
 
 suppressPackageStartupMessages(library(optparse))
-suppressPackageStartupMessages(library(readr))
-suppressPackageStartupMessages(library(feather))
 suppressPackageStartupMessages(library(data.table))
 suppressPackageStartupMessages(library(dtplyr))
 suppressPackageStartupMessages(library(dplyr, warn.conflicts = FALSE))
-suppressPackageStartupMessages(library(tidyr))
-suppressPackageStartupMessages(library(purrr))
 suppressPackageStartupMessages(library(stringr))
 
 SCRIPT_VERSION = "0.9"
