@@ -476,7 +476,7 @@ if ( params.emapper ) {
 
         output:
             file 'emapper.out'
-            file '*.emapper.annotations'
+            file '*.emapper.annotations'    into ch_emapper_annots
             file '*.emapper.seed_orthologs'
 
         script:
@@ -775,6 +775,31 @@ if ( params.summary ) {
               as.data.table() %>%
               fwrite('megan_refseq_gtdb_taxonomy.tsv.gz', sep = '\t', row.names = FALSE)
             """
+    }
+
+    if ( params.emapper ) {
+        process format_emapper_annots {
+            label 'process_low'
+            publishDir("${params.outdir}/summary", mode: "copy")
+
+            input:
+                path emapperannots from ch_emapper_annots
+
+            output:
+                path 'eggnog_annotations.tsv.gz'
+
+            script:
+                """
+                #!/usr/bin/env Rscript
+                library(data.table)
+                library(dtplyr)
+                library(dplyr, warn.conflicts = FALSE)
+                fread(cmd = "sed 's/^#//' $emapperannots") %>% lazy_dt() %>%
+                    rename(orf = query_name) %>%
+                    as.data.table() %>%
+                    fwrite('eggnog_annotations.tsv.gz', sep = '\t', row.names = FALSE)
+                """
+        }
     }
 }
 
