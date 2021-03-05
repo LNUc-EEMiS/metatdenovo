@@ -598,6 +598,7 @@ if ( params.megan_taxonomy ) {
 
         output:
             file '*.tsv.gz'
+            path '*.reads2taxonids.tsv.gz' into ch_megan_taxonomy
 
         script:
             """
@@ -657,6 +658,60 @@ process bbmap_feature_count {
         featureCounts -T $task.cpus -t CDS -g $id -a ${gff.baseName} $bams -o bbmap.fc.CDS.tsv 2>&1 > bbmap.fc.out
         pigz -p $task.cpus bbmap.fc.CDS.tsv
         """
+}
+
+/*
+ * STEP 9 - make summary tables
+ */
+
+if ( params.summary ) {
+    if ( params.ncbitaxonomy ) {
+        ch_ncbi_taxonomy = Channel.fromPath(params.ncbitaxonomy)
+    }
+    else {
+        ch_ncbitax_tar = Channel.fromPath(params.ncbitaxonomy_targz)
+
+        process create_ncbi_taxonomy {
+            label 'process_medium'
+            publishDir("${params.outdir}/ncbi_taxonomy", mode: "copy")
+
+            input:
+                //path taxtar from Channel.fromPath(params.ncbitaxonomy_targz)
+                path taxtar from ch_ncbitax_tar
+
+            output:
+                path 'ncbi_taxonomy.tsv.gz' into ch_ncbi_taxonomy
+
+            script:
+                """
+                tar xzf $taxtar
+                make_taxflat.R nodes.dmp names.dmp ncbi_taxonomy.tsv.gz
+                """
+        }
+    }
+    process megan_ncbi_full_taxonomy {
+        label 'process_low'
+        publishDir("${params.outdir}/summary", mode: "copy")
+
+        input:
+            path megantaxa from ch_megan_taxonomy
+            path ncbi_taxflat from ch_ncbi_taxonomy
+
+        output:
+            path 'megan_refseq_taxonomy.tsv.gz'
+
+        script:
+            """
+            #!/usr/bin/env Rscript
+            library(data.table)
+            library(dtplyr)
+            library(dplyr, warn.conflicts = FALSE)
+            fread('$megantaxa', col.names = c('orf', 'tax_id')) %>% lazy_dt() %>%
+              left_join(fread('$ncbi_taxflat') %>% lazy_dt(), by = 'tax_id') %>%
+              as.data.table() %>%
+              fwrite('megan_refseq_taxonomy.tsv.gz', sep = '\t', row.names = FALSE)
+            """
+    }
 }
 
 /*
