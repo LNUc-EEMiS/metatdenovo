@@ -807,7 +807,7 @@ if ( params.summary ) {
                     transmute(gtdb_accession = accession, gtdb_taxonomy = stringr::str_remove_all(gtdb_taxonomy, '[a-z]__'), ncbi_taxid) %>%
                     # separate the taxonomy string into one field per rank
                     tidyr::separate(gtdb_taxonomy, c('gtdb_domain', 'gtdb_phylum', 'gtdb_class', 'gtdb_order', 'gtdb_family', 'gtdb_genus', 'gtdb_species'), sep = ';') %>%
-                    fwrite('gtdb_metadata.tsv.gz', sep = '\t', row.names = FALSE)
+                    fwrite('gtdb_taxonomy.tsv.gz', sep = '\t', row.names = FALSE)
                 """
         }
     }
