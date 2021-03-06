@@ -27,7 +27,7 @@ ASSEMBLERS = [ megahit: true, trinity: true ]
 params.assembler = '' // Set to megahit or trinity to be meaningful
 
 // Modify when we start to support starting from an already finished assembly
-if ( ! ASSEMBLERS[params.assembler.toLowerCase()] ) {
+if ( ! params.assembly && ! ASSEMBLERS[params.assembler.toLowerCase()] ) {
     println "You must choose a supported assembly program: ${ASSEMBLERS.keySet().join(', ')}"
     exit 1
 }
@@ -311,9 +311,38 @@ else {
 }
 
 /*
- * STEP 5a - Megahit assembly
+ * STEP 5a: Make sure a user provided assembly file is gzipped. (Downstream steps require that.)
  */
-if ( params.assembler.toLowerCase() == 'megahit' ) {
+if ( params.assembly ) {
+    ch_assembly = Channel.fromPath(params.assembly, checkIfExists: true)
+
+    process gzip_assembly {
+        label 'process_medium'
+
+        input:
+            path assembly from ch_assembly
+
+        output:
+            path('*.gz', includeInputs: true) into ch_transdecoder
+            path('*.gz', includeInputs: true) into ch_prokka
+            path('*.gz', includeInputs: true) into ch_contigs_bbmap
+
+        script:
+            if ( assembly.getExtension() != 'gz' )
+                """
+                pigz -cp $task.cpus $assembly > $assembly.gz
+                """
+            else
+                """
+                echo done
+                """
+    }
+}
+
+/*
+ * STEP 5b: Megahit assembly
+ */
+else if ( params.assembler.toLowerCase() == 'megahit' ) {
     process megahit {
         label 'process_high'
         publishDir("${params.outdir}/megahit", mode: "copy")
@@ -340,9 +369,9 @@ if ( params.assembler.toLowerCase() == 'megahit' ) {
 }
 
 /*
- * STEP 5b - Trinity assembly
+ * STEP 5c: Trinity assembly
  */
-if ( params.assembler.toLowerCase() == 'trinity' ) {
+else if ( params.assembler.toLowerCase() == 'trinity' ) {
     process trinity {
         label 'process_high'
         publishDir("${params.outdir}/trinity", mode: "copy")
@@ -683,6 +712,7 @@ if ( params.summary ) {
                 library(data.table)
                 library(dtplyr)
                 library(dplyr, warn.conflicts = FALSE)
+                setDTthreads($task.cpus)
                 fread('$bbmapfc') %>%
                     melt(measure.vars = 7:ncol(.), variable.name = 'sample', value.name = 'count') %>% lazy_dt() %>%
                     mutate(sample = stringr::str_remove(sample, '.bbmap.bam'), r = count/Length) %>%
@@ -734,6 +764,7 @@ if ( params.summary ) {
             library(data.table)
             library(dtplyr)
             library(dplyr, warn.conflicts = FALSE)
+            setDTthreads($task.cpus)
             fread('$megantaxa', col.names = c('orf', 'tax_id')) %>% lazy_dt() %>%
               left_join(fread('$ncbi_taxflat') %>% lazy_dt(), by = 'tax_id') %>%
               as.data.table() %>%
@@ -757,13 +788,14 @@ if ( params.summary ) {
                 path bactar from ch_bactar
 
             output:
-                path 'gtdb_metadata.tsv.gz' into ch_gtdb_taxonomy
+                path 'gtdb_taxonomy.tsv.gz' into ch_gtdb_taxonomy
 
             script:
                 """
                 #!/usr/bin/env Rscript
                 library(data.table)
                 library(dplyr, warn.conflicts = FALSE)
+                setDTthreads($task.cpus)
                 # Read and stack the archeal and bacterial metadata tables,
                 funion(
                   fread(cmd = 'tar xzOf $arctar', colClasses = c('character')),
@@ -796,6 +828,7 @@ if ( params.summary ) {
             library(data.table)
             library(dtplyr)
             library(dplyr, warn.conflicts = FALSE)
+            setDTthreads($task.cpus)
             fread('$megantaxa', col.names = c('orf', 'tax_id')) %>% lazy_dt() %>%
               left_join(fread('$gtdbtax') %>% lazy_dt() %>% mutate(ncbi_taxid = as.integer(ncbi_taxid)), by = c('tax_id' = 'ncbi_taxid')) %>%
               rename(ncbi_tax_id = tax_id) %>%
@@ -821,6 +854,7 @@ if ( params.summary ) {
                 library(data.table)
                 library(dtplyr)
                 library(dplyr, warn.conflicts = FALSE)
+                setDTthreads($task.cpus)
                 fread(cmd = "sed 's/^#//' $emapperannots") %>% lazy_dt() %>%
                     rename(orf = query_name) %>%
                     as.data.table() %>%

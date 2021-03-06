@@ -32,6 +32,11 @@
                     "default": "./results",
                     "fa_icon": "fas fa-folder-open"
                 },
+                "assembly": {
+                    "type": "string",
+                    "description": "Fasta file, gzipped or not, with contigs from prior assembly.",
+                    "default": ""
+                },
                 "email": {
                     "type": "string",
                     "description": "Email address for completion summary.",
