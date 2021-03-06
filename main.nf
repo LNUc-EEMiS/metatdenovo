@@ -303,6 +303,7 @@ else {
         output:
             file("*_R1_untrimmed.fastq.gz") into (trimmed_fwdreads_megahit, trimmed_fwdreads_trinity)
             file("*_R2_untrimmed.fastq.gz") into (trimmed_revreads_megahit, trimmed_revreads_trinity)
+            tuple name, '*.fastq.gz' into ch_read_files_bbmap
 
         """
         mv ${reads[0]} ${name}._R1_untrimmed.fastq.gz
