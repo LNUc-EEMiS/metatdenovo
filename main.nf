@@ -323,8 +323,8 @@ if ( params.assembly ) {
             path assembly from ch_assembly
 
         output:
-            path('*.gz', includeInputs: true) into ch_transdecoder
-            path('*.gz', includeInputs: true) into ch_prokka
+            path('*.gz', includeInputs: true) into ch_contigs_transdecoder
+            path('*.gz', includeInputs: true) into ch_contigs_prokka
             path('*.gz', includeInputs: true) into ch_contigs_bbmap
 
         script:
@@ -352,8 +352,8 @@ else if ( params.assembler.toLowerCase() == 'megahit' ) {
             file(revreads) from trimmed_revreads_megahit.collect()
 
         output:
-            file "megahit.final.contigs.fna.gz" into ch_transdecoder
-            file "megahit.final.contigs.fna.gz" into ch_prokka
+            file "megahit.final.contigs.fna.gz" into ch_contigs_transdecoder
+            file "megahit.final.contigs.fna.gz" into ch_contigs_prokka
             file "megahit.final.contigs.fna.gz" into ch_contigs_bbmap
             file "megahit.log"
             file "megahit.tar.gz"
@@ -381,8 +381,8 @@ else if ( params.assembler.toLowerCase() == 'trinity' ) {
             file(revreads) from trimmed_revreads_trinity.collect()
 
         output:
-            file "trinity.final.contigs.fna.gz" into ch_transdecoder
-            file "trinity.final.contigs.fna.gz" into ch_prokka
+            file "trinity.final.contigs.fna.gz" into ch_contigs_transdecoder
+            file "trinity.final.contigs.fna.gz" into ch_contigs_prokka
             file "trinity.final.contigs.fna.gz" into ch_contigs_bbmap
             file "trinity.log"
             file "trinity.tar.gz"
@@ -408,7 +408,7 @@ if ( params.annotator.toLowerCase() == 'prokka' ) {
         publishDir("${params.outdir}", mode: "copy")
 
         input:
-            file contigs from ch_prokka
+            file contigs from ch_contigs_prokka
 
         output:
             file 'prokka/*.err.gz'
@@ -445,7 +445,7 @@ if ( params.annotator.toLowerCase() == 'trinotate' ) {
         publishDir("${params.outdir}/trinotate", mode: "copy")
 
         input:
-            file contigs from ch_transdecoder
+            file contigs from ch_contigs_transdecoder
 
         output:
             file '*.transdecoder.faa.gz'  into ch_emapper
