@@ -523,9 +523,37 @@ if ( params.emapper ) {
  * STEP 7 - Taxonomic annotation with Diamond/RefSeq and MEGAN.
  */
 if ( params.megan_taxonomy ) {
-    if ( ! params.refseq_dmnd && params.refseq_faa ) {
+
+    // Prioritize using user provided Diamond Refseq database in dmnd format
+    if ( params.refseq_dmnd ) {
+        ch_refseq_dmnd = Channel.fromPath(params.refseq_dmnd,  checkIfExists: true)
+        ch_refseq_faa = Channel.empty()
+    } 
+    // Second best, user provide faa file
+    else if ( params.refseq_faa ) {
         ch_refseq_faa  = Channel.fromPath(params.refseq_faa, checkIfExists: true)
 
+    } 
+    // Last resort: Download Refseq
+    else {
+        process download_refseq {
+            label 'process_long'
+            publishDir("${params.outdir}/refseq", mode: "copy")
+
+            output:
+                path 'refseq_protein.faa' into ch_refseq_faa
+
+            script:
+                """
+                wget -A "refseq_protein.*.tar.gz" --mirror ftp://ftp.ncbi.nih.gov/blast/db
+                ( cd ftp.ncbi.nih.gov/blast/db; for f in refseq_protein.*.tar.gz; do echo "--> untarring \$f <--"; tar xzf \$f; done )
+                blastdbcmd -db ftp.ncbi.nih.gov/blast/db/refseq_protein -entry all -dbtype prot -out refseq_protein.faa
+                """
+        }
+    }
+
+    if ( ! params.refseq_dmnd ) {
+        // Format a fasta file to Diamond dmnd
         process refseq_dmnd {
             label 'process_medium'
             publishDir("${params.outdir}/refseq", mode: "copy")
@@ -552,25 +580,6 @@ if ( params.megan_taxonomy ) {
                     diamond makedb --in $refseq_faa -d refseq_protein --threads $task.cpus
                     """
                 }
-        }
-    } 
-    else if ( params.refseq_dmnd ) {
-        ch_refseq_dmnd = Channel.fromPath(params.refseq_dmnd,  checkIfExists: true)
-    } 
-    else if ( ! params.refseq_faa ) {
-        process download_refseq {
-            label 'process_long'
-            publishDir("${params.outdir}/refseq", mode: "copy")
-
-            output:
-                path 'refseq_protein.faa' into ch_refseq_faa
-
-            script:
-                """
-                wget -A "refseq_protein.*.tar.gz" --mirror ftp://ftp.ncbi.nih.gov/blast/db
-                ( cd ftp.ncbi.nih.gov/blast/db; for f in refseq_protein.*.tar.gz; do echo "--> untarring \$f <--"; tar xzf \$f; done )
-                blastdbcmd -db ftp.ncbi.nih.gov/blast/db/refseq_protein -entry all -dbtype prot -out refseq_protein.faa
-                """
         }
     }
 
