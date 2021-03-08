@@ -49,8 +49,8 @@
             "properties": {
                 "assembler": {
                     "type": "string",
-                    "description": "Which assembly program to use: megahit or trinity.",
-                    "help_text": "Set this parameter to either 'megahit' or 'trinity'."
+                    "description": "Which assembly program to use: megahit, rnaspades or trinity.",
+                    "help_text": "Set this parameter to either 'megahit', 'rnaspades' or 'trinity'."
                 },
                 "annotator": {
                     "type": "string",

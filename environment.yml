@@ -29,3 +29,4 @@ dependencies:
   - bbtools=37.62
   - samtools=1.11
   - subread=2.0.1
+  - spades=3.14.1

@@ -23,8 +23,8 @@ if (params.help) {
 params.outdir = 'results/'
 
 // Assembly program
-ASSEMBLERS = [ megahit: true, trinity: true ]
-params.assembler = '' // Set to megahit or trinity to be meaningful
+ASSEMBLERS = [ megahit: true, rnaspades: true, trinity: true ]
+params.assembler = '' // Set to megahit, rnaspades or trinity to be meaningful
 
 // Modify when we start to support starting from an already finished assembly
 if ( ! ASSEMBLERS[params.assembler.toLowerCase()] ) {
@@ -277,8 +277,8 @@ if ( ! params.skip_trimming ) {
             tuple name, file(reads) from ch_read_files_trimming
 
         output:
-            file("*_1.fq.gz") into (trimmed_fwdreads_megahit, trimmed_fwdreads_trinity)
-            file("*_2.fq.gz") into (trimmed_revreads_megahit, trimmed_revreads_trinity)
+            file("*_1.fq.gz") into (trimmed_fwdreads_megahit, trimmed_fwdreads_rnaspades, trimmed_fwdreads_trinity)
+            file("*_2.fq.gz") into (trimmed_revreads_megahit, trimmed_revreads_rnaspades, trimmed_revreads_trinity)
             tuple val(name), file("*.trim_galore.log") into trimming_logs
 
         // TODO: Check how to best get this into fastqc/multiqc
@@ -300,8 +300,8 @@ else {
             tuple name, file(reads) from ch_read_files_trimming
 
         output:
-            file("*_R1_untrimmed.fastq.gz") into (trimmed_fwdreads_megahit, trimmed_fwdreads_trinity)
-            file("*_R2_untrimmed.fastq.gz") into (trimmed_revreads_megahit, trimmed_revreads_trinity)
+            file("*_R1_untrimmed.fastq.gz") into (trimmed_fwdreads_megahit, trimmed_fwdreads_rnaspades, trimmed_fwdreads_trinity)
+            file("*_R2_untrimmed.fastq.gz") into (trimmed_revreads_megahit, trimmed_revreads_rnaspades, trimmed_revreads_trinity)
 
         """
         mv ${reads[0]} ${name}._R1_untrimmed.fastq.gz
@@ -340,7 +340,37 @@ if ( params.assembler.toLowerCase() == 'megahit' ) {
 }
 
 /*
- * STEP 5b - Trinity assembly
+ * STEP 5b - rnaSPADES assembly
+ */
+if ( params.assembler.toLowerCase() == 'rnaspades' ) {
+    process rnaspades {
+        label 'process_high'
+        publishDir("${params.outdir}/rnaspades", mode: "copy")
+
+        input:
+            file(fwdreads) from trimmed_fwdreads_rnaspades.collect()
+            file(revreads) from trimmed_revreads_rnaspades.collect()
+
+        output:
+            file "rnaspades.transcripts.fna.gz" into ch_transdecoder
+            file "rnaspades.transcripts.fna.gz" into ch_prokka
+            file "rnaspades.transcripts.fna.gz" into ch_contigs_bbmap
+            file "rnaspades.log"
+            file "rnaspades.tar.gz"
+
+        script:
+            """
+            unpigz -cp ${task.cpus} ${fwdreads.sort()} | pigz -cp ${task.cpus} > fwdreads.fastq.gz
+            unpigz -cp ${task.cpus} ${revreads.sort()} | pigz -cp ${task.cpus} > revreads.fastq.gz
+            rnaspades.py -t ${task.cpus} -m ${task.memory.toGiga()} -1 fwdreads.fastq.gz -2 revreads.fastq.gz -o rnaspades_out > rnaspades.log 2>&1
+            sed 's/\\(>NODE_[0-9]*\\).*/\\1/' rnaspades_out/transcripts.fasta | pigz -cp ${task.cpus} > rnaspades.transcripts.fna.gz
+            tar cfz rnaspades.tar.gz rnaspades_out/
+            """
+    }
+}
+
+/*
+ * STEP 5c - Trinity assembly
  */
 if ( params.assembler.toLowerCase() == 'trinity' ) {
     process trinity {
