@@ -371,9 +371,9 @@ else if ( params.assembler.toLowerCase() == 'megahit' ) {
 }
 
 /*
- * STEP 5b - rnaSPADES assembly
+ * STEP 5c: rnaSPADES assembly
  */
-if ( params.assembler.toLowerCase() == 'rnaspades' ) {
+else if ( params.assembler.toLowerCase() == 'rnaspades' ) {
     process rnaspades {
         label 'process_high'
         publishDir("${params.outdir}/rnaspades", mode: "copy")
@@ -401,7 +401,7 @@ if ( params.assembler.toLowerCase() == 'rnaspades' ) {
 }
 
 /*
- * STEP 5c - Trinity assembly
+ * STEP 5d: Trinity assembly
  */
 else if ( params.assembler.toLowerCase() == 'trinity' ) {
     process trinity {
