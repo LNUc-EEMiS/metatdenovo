@@ -166,7 +166,6 @@ process get_software_versions {
         file 'software_versions_mqc.yaml' into ch_software_versions_yaml
         file "software_versions.csv"
 
-    // TODO: Fill in prokka, eggnog-mapper and ...
     script:
         """
         echo $workflow.manifest.version > v_pipeline.txt
@@ -176,7 +175,13 @@ process get_software_versions {
         cutadapt --version > v_cutadapt.txt
         trim_galore --version | grep version > v_trim_galore.txt
         megahit --version > v_megahit.txt
+        rnaspades.py -v > v_rnaspades.txt
         grep "my \\+\\\$VERSION" \$(which Trinity) |grep -v "#"|sed 's/.*"\\(.*\\)"; */\\1/' > v_trinity.txt
+        prokka -v > v_prokka.txt
+        diamond version > v_diamond.txt
+        grep 'Last modified' \$(which bbmap.sh) > v_bbmap.txt
+        featureCounts -v 2>&1|grep feature > v_featureCounts.txt
+        R --version|grep '^R version' > v_R.txt
         scrape_software_versions.py &> software_versions_mqc.yaml
         """
 }
@@ -645,6 +650,7 @@ if ( params.megan_taxonomy ) {
             file daa into ch_meganized_daa
 
         script:
+            // This will clearly break when Megan is updated
             unzip  = ( acc2taxa.getExtension()        == 'zip' ) ? "unzip $acc2taxa" : ""
             unzip += ( acc2eggnog.getExtension()      == 'zip' ) ? "; unzip $acc2eggnog" : ""
             unzip += ( acc2interpro2go.getExtension() == 'zip' ) ? "; unzip $acc2interpro2go" : ""
@@ -672,6 +678,7 @@ if ( params.megan_taxonomy ) {
             path '*.reads2taxonids.tsv.gz' into ch_megan_taxonomy_gtdb
 
         script:
+            // This will clearly break when Megan is updated
             """
             /opt/conda/envs/nf-core-metatdenovo-1.0dev/opt/megan-6.12.3/tools/daa2info -i $daa -r2c Taxonomy    | gzip -c > ${daa.toString() - '.daa'}.reads2taxonids.tsv.gz
             /opt/conda/envs/nf-core-metatdenovo-1.0dev/opt/megan-6.12.3/tools/daa2info -i $daa -r2c EGGNOG      | gzip -c > ${daa.toString() - '.daa'}.reads2eggnogs.tsv.gz
