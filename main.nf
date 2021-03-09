@@ -177,7 +177,8 @@ process get_software_versions {
         megahit --version > v_megahit.txt
         rnaspades.py -v > v_rnaspades.txt
         grep "my \\+\\\$VERSION" \$(which Trinity) |grep -v "#"|sed 's/.*"\\(.*\\)"; */\\1/' > v_trinity.txt
-        prokka -v > v_prokka.txt
+        prokka -v 2> v_prokka.txt
+        TransDecoder.LongOrfs --version > v_transdecoder.txt
         diamond version > v_diamond.txt
         grep 'Last modified' \$(which bbmap.sh) > v_bbmap.txt
         featureCounts -v 2>&1|grep feature > v_featureCounts.txt
