@@ -703,7 +703,7 @@ process bbmap {
     script:
         // The trimreaddescriptions=t is required by featureCount
         """
-        bbmap.sh trimreaddescriptions=t unpigz=t threads=$task.cpus nodisk=t ref=$contigs in=${reads[0]} in2=${reads[1]} out=stdout 2>${name}.bbmap.out | samtools view -Sb | samtools sort > ${name}.bbmap.bam
+        bbmap.sh -Xmx${task.memory.getGiga()}g trimreaddescriptions=t unpigz=t threads=$task.cpus nodisk=t ref=$contigs in=${reads[0]} in2=${reads[1]} out=stdout 2>${name}.bbmap.out | samtools view -Sb | samtools sort > ${name}.bbmap.bam
         """
 }
 
