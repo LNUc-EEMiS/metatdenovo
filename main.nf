@@ -397,9 +397,7 @@ else if ( params.assembler.toLowerCase() == 'rnaspades' ) {
 
         script:
             """
-            unpigz -cp ${task.cpus} ${fwdreads.sort()} | pigz -cp ${task.cpus} > fwdreads.fastq.gz
-            unpigz -cp ${task.cpus} ${revreads.sort()} | pigz -cp ${task.cpus} > revreads.fastq.gz
-            rnaspades.py -t ${task.cpus} -m ${task.memory.toGiga()} -1 fwdreads.fastq.gz -2 revreads.fastq.gz -o rnaspades_out > rnaspades.log 2>&1
+            rnaspades.py -t ${task.cpus} -m ${task.memory.toGiga()} ${fwdreads.sort().withIndex().collect { item, index -> "--pe-1 ${index} $item"}.join(' ')} ${revreads.sort().withIndex().collect { item, index -> "--pe-2 ${index} $item"}.join(' ')} -o rnaspades_out > rnaspades.log 2>&1
             sed 's/\\(>NODE_[0-9]*\\).*/\\1/' rnaspades_out/transcripts.fasta | pigz -cp ${task.cpus} > rnaspades.transcripts.fna.gz
             tar cfz rnaspades.tar.gz rnaspades_out/
             """
