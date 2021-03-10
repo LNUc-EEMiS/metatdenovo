@@ -356,8 +356,8 @@ else if ( params.assembler.toLowerCase() == 'megahit' ) {
         publishDir("${params.outdir}/megahit", mode: "copy")
 
         input:
-            file(fwdreads) from trimmed_fwdreads_megahit.collect()
-            file(revreads) from trimmed_revreads_megahit.collect()
+            file(fwdreads) from trimmed_fwdreads_megahit.toSortedList()
+            file(revreads) from trimmed_revreads_megahit.toSortedList()
 
         output:
             file "megahit.final.contigs.fna.gz" into ch_contigs_transdecoder
@@ -368,7 +368,7 @@ else if ( params.assembler.toLowerCase() == 'megahit' ) {
 
         script:
             """
-            megahit -t ${task.cpus} -m ${task.memory.toBytes()} -1 ${fwdreads.sort().join(',')} -2 ${revreads.sort().join(',')} > megahit.log 2>&1
+            megahit -t ${task.cpus} -m ${task.memory.toBytes()} -1 ${fwdreads.join(',')} -2 ${revreads.join(',')} > megahit.log 2>&1
             cp megahit_out/final.contigs.fa megahit.final.contigs.fna
             pigz -p ${task.cpus} megahit.final.contigs.fna
             tar cfz megahit.tar.gz megahit_out/
@@ -385,8 +385,8 @@ else if ( params.assembler.toLowerCase() == 'rnaspades' ) {
         publishDir("${params.outdir}/rnaspades", mode: "copy")
 
         input:
-            file(fwdreads) from trimmed_fwdreads_rnaspades.collect()
-            file(revreads) from trimmed_revreads_rnaspades.collect()
+            file(fwdreads) from trimmed_fwdreads_rnaspades.toSortedList()
+            file(revreads) from trimmed_revreads_rnaspades.toSortedList()
 
         output:
             file "rnaspades.transcripts.fna.gz" into ch_contigs_transdecoder
@@ -397,7 +397,7 @@ else if ( params.assembler.toLowerCase() == 'rnaspades' ) {
 
         script:
             """
-            rnaspades.py -t ${task.cpus} -m ${task.memory.toGiga()} ${fwdreads.toSorted().withIndex().collect { item, index -> "--pe-1 ${index} $item"}.join(' ')} ${revreads.toSorted().withIndex().collect { item, index -> "--pe-2 ${index} $item"}.join(' ')} -o rnaspades_out > rnaspades.log 2>&1
+            rnaspades.py -t ${task.cpus} -m ${task.memory.toGiga()} ${fwdreads.withIndex().collect { item, index -> "--pe-1 ${index} $item"}.join(' ')} ${revreads.withIndex().collect { item, index -> "--pe-2 ${index} $item"}.join(' ')} -o rnaspades_out > rnaspades.log 2>&1
             sed 's/\\(>NODE_[0-9]*\\).*/\\1/' rnaspades_out/transcripts.fasta | pigz -cp ${task.cpus} > rnaspades.transcripts.fna.gz
             tar cfz rnaspades.tar.gz rnaspades_out/
             """
@@ -413,8 +413,8 @@ else if ( params.assembler.toLowerCase() == 'trinity' ) {
         publishDir("${params.outdir}/trinity", mode: "copy")
 
         input:
-            file(fwdreads) from trimmed_fwdreads_trinity.collect()
-            file(revreads) from trimmed_revreads_trinity.collect()
+            file(fwdreads) from trimmed_fwdreads_trinity.toSortedList()
+            file(revreads) from trimmed_revreads_trinity.toSortedList()
 
         output:
             file "trinity.final.contigs.fna.gz" into ch_contigs_transdecoder
@@ -425,8 +425,8 @@ else if ( params.assembler.toLowerCase() == 'trinity' ) {
 
         script:
             """
-            unpigz -c -p ${task.cpus} ${fwdreads.sort().join(' ')} > fwdreads.fastq
-            unpigz -c -p ${task.cpus} ${revreads.sort().join(' ')} > revreads.fastq
+            unpigz -c -p ${task.cpus} ${fwdreads.join(' ')} > fwdreads.fastq
+            unpigz -c -p ${task.cpus} ${revreads.join(' ')} > revreads.fastq
             Trinity --CPU ${task.cpus} --seqType fq --max_memory ${task.memory.toGiga()}G --left fwdreads.fastq --right revreads.fastq > trinity.log 2>&1
             cp trinity_out_dir/Trinity.fasta trinity.final.contigs.fna
             pigz -p ${task.cpus} trinity.final.contigs.fna
