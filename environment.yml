@@ -37,3 +37,4 @@ dependencies:
   - r-r.utils=2.8.0
   - r-tidyr=0.8.3
   - spades=3.14.1
+  - bioconda::khmer

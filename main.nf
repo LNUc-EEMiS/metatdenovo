@@ -183,6 +183,7 @@ process get_software_versions {
         grep 'Last modified' \$(which bbmap.sh) > v_bbmap.txt
         featureCounts -v 2>&1|grep feature > v_featureCounts.txt
         R --version|grep '^R version' > v_R.txt
+        normalize-by-median.py --version 2>&1|grep ^khmer > v_khmer.txt
         scrape_software_versions.py &> software_versions_mqc.yaml
         """
 }
