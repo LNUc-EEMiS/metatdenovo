@@ -397,7 +397,7 @@ else if ( params.assembler.toLowerCase() == 'rnaspades' ) {
 
         script:
             """
-            rnaspades.py -t ${task.cpus} -m ${task.memory.toGiga()} ${fwdreads.sort().withIndex().collect { item, index -> "--pe-1 ${index} $item"}.join(' ')} ${revreads.sort().withIndex().collect { item, index -> "--pe-2 ${index} $item"}.join(' ')} -o rnaspades_out > rnaspades.log 2>&1
+            rnaspades.py -t ${task.cpus} -m ${task.memory.toGiga()} ${fwdreads.toSorted().withIndex().collect { item, index -> "--pe-1 ${index} $item"}.join(' ')} ${revreads.toSorted().withIndex().collect { item, index -> "--pe-2 ${index} $item"}.join(' ')} -o rnaspades_out > rnaspades.log 2>&1
             sed 's/\\(>NODE_[0-9]*\\).*/\\1/' rnaspades_out/transcripts.fasta | pigz -cp ${task.cpus} > rnaspades.transcripts.fna.gz
             tar cfz rnaspades.tar.gz rnaspades_out/
             """
