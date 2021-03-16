@@ -360,11 +360,11 @@ if ( params.diginorm ) {
 
         script:
             """
-            normalize-by-median.py -p -k 20 -C 20 --gzip --savegraph diginorm.C20k20.kh -o diginorm.C20k20.pe.fastq.gz $intlreads 
+            normalize-by-median.py -M ${task.memory.toGiga()}e9 -p -k 20 -C 20 --gzip --savegraph diginorm.C20k20.kh -o diginorm.C20k20.pe.fastq.gz $intlreads 
             filter-abund.py -V diginorm.C20k20.kh --gzip -o diginorm.C20k20.fa.mixed.fastq.gz diginorm.C20k20.pe.fastq.gz 
             extract-paired-reads.py --output-paired diginorm.C20k20.fa.pe.fastq.gz --output-single diginorm.C20k20.fa.se.fastq.gz diginorm.C20k20.fa.mixed.fastq.gz 
-            normalize-by-median.py -p -C 5 -k 20 --savegraph normC5k20.kh --gzip -o diginorm.C5k20.pe.fastq.gz diginorm.C20k20.fa.pe.fastq.gz 
-            normalize-by-median.py -C 5 -k 20 --loadgraph normC5k20.kh --gzip -o diginorm.C5k20.se.fastq.gz diginorm.C20k20.fa.se.fastq.gz 
+            normalize-by-median.py -M ${task.memory.toGiga()}e9 -p -C 5 -k 20 --savegraph normC5k20.kh --gzip -o diginorm.C5k20.pe.fastq.gz diginorm.C20k20.fa.pe.fastq.gz 
+            normalize-by-median.py -M ${task.memory.toGiga()}e9 -C 5 -k 20 --loadgraph normC5k20.kh --gzip -o diginorm.C5k20.se.fastq.gz diginorm.C20k20.fa.se.fastq.gz 
             cp .command.log diginorm.out
             """
     }
