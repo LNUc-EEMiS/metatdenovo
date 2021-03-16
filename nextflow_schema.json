@@ -63,8 +63,23 @@
                 },
                 "diginorm": {
                     "type": "boolean",
-                    "description": "Run khmer digital normalization of reads before assembly",
+                    "description": "Run khmer digital normalization of reads before assembly. Check --params.diginorm_k, --params.diginorm_C1 and --params.diginorm_C2 for how to control the three passes.",
                     "default": false
+                },
+                "params.diginorm_k": {
+                    "type": "integer",
+                    "description": "kmer length for digital normalization",
+                    "default": 20
+                },
+                "params.diginorm_C1": {
+                    "type": "integer",
+                    "description": "Coverage to keep in digital normalization, first pass",
+                    "default": 20
+                },
+                "params.diginorm_C2": {
+                    "type": "integer",
+                    "description": "Coverage to keep in digital normalization, second pass",
+                    "default": 5
                 },
                 "emapper": {
                     "type": "boolean",

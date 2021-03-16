@@ -355,16 +355,16 @@ if ( params.diginorm ) {
         output:
             path 'diginorm.out'
             path 'diginorm.*.[ps]e.fastq.gz'
-            path 'diginorm.C5k20.pe.fastq.gz' into ch_intl_assembly
-            path 'diginorm.C5k20.se.fastq.gz' into ch_se_assembly
+            path "diginorm.C${params.diginorm_C2}k${params.diginorm_k}.pe.fastq.gz" into ch_intl_assembly
+            path "diginorm.C${params.diginorm_C2}k${params.diginorm_k}.se.fastq.gz" into ch_se_assembly
 
         script:
             """
-            normalize-by-median.py -M ${task.memory.toGiga()}e9 -p -k 20 -C 20 --gzip --savegraph diginorm.C20k20.kh -o diginorm.C20k20.pe.fastq.gz $intlreads 
-            filter-abund.py -V diginorm.C20k20.kh --gzip -o diginorm.C20k20.fa.mixed.fastq.gz diginorm.C20k20.pe.fastq.gz 
-            extract-paired-reads.py --output-paired diginorm.C20k20.fa.pe.fastq.gz --output-single diginorm.C20k20.fa.se.fastq.gz diginorm.C20k20.fa.mixed.fastq.gz 
-            normalize-by-median.py -M ${task.memory.toGiga()}e9 -p -C 5 -k 20 --savegraph normC5k20.kh --gzip -o diginorm.C5k20.pe.fastq.gz diginorm.C20k20.fa.pe.fastq.gz 
-            normalize-by-median.py -M ${task.memory.toGiga()}e9 -C 5 -k 20 --loadgraph normC5k20.kh --gzip -o diginorm.C5k20.se.fastq.gz diginorm.C20k20.fa.se.fastq.gz 
+            normalize-by-median.py -M ${task.memory.toGiga()}e9 -p -k $params.diginorm_k -C $params.diginorm_C1 --gzip --savegraph diginorm.C${params.diginorm_C1}k${params.diginorm_k}.kh -o diginorm.C${params.diginorm_C1}k${params.diginorm_k}.pe.fastq.gz $intlreads 
+            filter-abund.py -V diginorm.C${params.diginorm_C1}k${params.diginorm_k}.kh --gzip -o diginorm.C${params.diginorm_C1}k${params.diginorm_k}.fa.mixed.fastq.gz diginorm.C${params.diginorm_C1}k${params.diginorm_k}.pe.fastq.gz 
+            extract-paired-reads.py --output-paired diginorm.C${params.diginorm_C1}k${params.diginorm_k}.fa.pe.fastq.gz --output-single diginorm.C${params.diginorm_C1}k${params.diginorm_k}.fa.se.fastq.gz diginorm.C${params.diginorm_C1}k${params.diginorm_k}.fa.mixed.fastq.gz 
+            normalize-by-median.py -M ${task.memory.toGiga()}e9 -p -C $params.diginorm_C2 -k $params.diginorm_k --savegraph normC${params.diginorm_C2}k${params.diginorm_k}.kh --gzip -o diginorm.C${params.diginorm_C2}k${params.diginorm_k}.pe.fastq.gz diginorm.C${params.diginorm_C1}k${params.diginorm_k}.fa.pe.fastq.gz 
+            normalize-by-median.py -M ${task.memory.toGiga()}e9 -C $params.diginorm_C2 -k $params.diginorm_k --loadgraph normC${params.diginorm_C2}k${params.diginorm_k}.kh --gzip -o diginorm.C${params.diginorm_C2}k${params.diginorm_k}.se.fastq.gz diginorm.C${params.diginorm_C1}k${params.diginorm_k}.fa.se.fastq.gz 
             cp .command.log diginorm.out
             """
     }
