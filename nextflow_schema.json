@@ -61,6 +61,11 @@
                     "type": "string",
                     "description": "Main annotator to call ORFs and annotate contigs, either 'prokka' or 'trinotate' (the latter only partly supported)."
                 },
+                "diginorm": {
+                    "type": "boolean",
+                    "description": "Run khmer digital normalization of reads before assembly",
+                    "default": false
+                },
                 "emapper": {
                     "type": "boolean",
                     "description": "Run the EGGNOG mapper"
