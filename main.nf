@@ -311,7 +311,7 @@ else {
         output:
             file("*_R1_untrimmed.fastq.gz") into ch_trimmed_fwd_reads
             file("*_R2_untrimmed.fastq.gz") into ch_trimmed_rev_reads
-            tuple name, '*.fq.gz' into ch_trimmed_reads
+            tuple name, '*.fastq.gz' into ch_trimmed_reads
             tuple name, '*.fastq.gz' into ch_read_files_bbmap
 
         """
