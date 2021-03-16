@@ -7,10 +7,10 @@ channels:
   - conda-forge
   - agbiome
 dependencies:
-  - python=3.7.9
-  - markdown=3.3.3
-  - pymdown-extensions=8.1.1
-  - pygments=2.7.4
+  - conda-forge::python=3.7.9
+  - conda-forge::markdown=3.3.3
+  - conda-forge::pymdown-extensions=8.1.1
+  - conda-forge::pygments=2.7.4
   - fastqc=0.11.9
   - multiqc=1.9
   - r-markdown=0.9
