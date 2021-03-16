@@ -3,7 +3,6 @@ from __future__ import print_function
 from collections import OrderedDict
 import re
 
-# TODO nf-core: Add additional regexes for new tools in process get_software_versions
 regexes = {
     'nf-core/metatdenovo': ['v_pipeline.txt', r"(\S+)"],
     'Nextflow': ['v_nextflow.txt', r"(\S+)"],
@@ -11,6 +10,7 @@ regexes = {
     'MultiQC': ['v_multiqc.txt', r"multiqc, version (\S+)"],
     'Cutadapt': ['v_cutadapt.txt', r"(.*)"],
     'Trim galore': ['v_trim_galore.txt', r"\s*version (.*)"],
+    'khmer': ['v_khmer.txt', r"khmer (.*)"],
     'Megahit': ['v_megahit.txt', r"MEGAHIT v(.*)"],
     'rnaSPAdes': ['v_rnaspades.txt', r"SPAdes genome assembler v(.*) \[rnaSPAdes mode\]"],
     'Trinity': ['v_trinity.txt', r"Trinity-v(.*)"],

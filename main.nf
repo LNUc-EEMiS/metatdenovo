@@ -183,6 +183,7 @@ process get_software_versions {
         grep 'Last modified' \$(which bbmap.sh) > v_bbmap.txt
         featureCounts -v 2>&1|grep feature > v_featureCounts.txt
         R --version|grep '^R version' > v_R.txt
+        normalize-by-median.py --version 2>&1|grep ^khmer > v_khmer.txt
         scrape_software_versions.py &> software_versions_mqc.yaml
         """
 }
@@ -270,7 +271,7 @@ process output_documentation {
 }
 
 /*
- * STEP 4 - Trimming
+ * STEP 4a: Trimming
  */
 if ( ! params.skip_trimming ) {
     process trim_galore {
@@ -283,8 +284,9 @@ if ( ! params.skip_trimming ) {
             tuple name, file(reads) from ch_read_files_trimming
 
         output:
-            file("*_1.fq.gz") into (trimmed_fwdreads_megahit, trimmed_fwdreads_rnaspades, trimmed_fwdreads_trinity)
-            file("*_2.fq.gz") into (trimmed_revreads_megahit, trimmed_revreads_rnaspades, trimmed_revreads_trinity)
+            file("*_1.fq.gz") into ch_trimmed_fwd_reads
+            file("*_2.fq.gz") into ch_trimmed_rev_reads
+            tuple name, '*.fq.gz' into ch_trimmed_reads
             tuple name, '*.fq.gz' into ch_read_files_bbmap
             tuple val(name), file("*.trim_galore.log") into trimming_logs
 
@@ -307,8 +309,9 @@ else {
             tuple name, file(reads) from ch_read_files_trimming
 
         output:
-            file("*_R1_untrimmed.fastq.gz") into (trimmed_fwdreads_megahit, trimmed_fwdreads_rnaspades, trimmed_fwdreads_trinity)
-            file("*_R2_untrimmed.fastq.gz") into (trimmed_revreads_megahit, trimmed_revreads_rnaspades, trimmed_revreads_trinity)
+            file("*_R1_untrimmed.fastq.gz") into ch_trimmed_fwd_reads
+            file("*_R2_untrimmed.fastq.gz") into ch_trimmed_rev_reads
+            tuple name, '*.fastq.gz' into ch_trimmed_reads
             tuple name, '*.fastq.gz' into ch_read_files_bbmap
 
         """
@@ -316,6 +319,58 @@ else {
         mv ${reads[1]} ${name}._R2_untrimmed.fastq.gz
         """
     }
+}
+
+/*
+ * STEP 4b: Interleave
+ */
+process interleave {
+    label 'process_low'
+    tag "$name"
+
+    input:
+        tuple name, file(reads) from ch_trimmed_reads
+
+    output:
+        path '*.intl.fastq.gz' into ch_interleaved
+
+    script:
+        """
+        reformat.sh in1=${reads[0]} in2=${reads[1]} out=${name}.intl.fastq.gz
+        """
+}
+
+/*
+ * STEP 4c: Digital normalization
+ */
+if ( params.diginorm ) {
+    process diginorm {
+        label 'process_medium'
+
+        publishDir("${params.outdir}/diginorm/", mode: "copy")
+
+        input:
+            path intlreads from ch_interleaved.collect()
+
+        output:
+            path 'diginorm.out'
+            path 'diginorm.*.[ps]e.fastq.gz'
+            path "diginorm.C${params.diginorm_C2}k${params.diginorm_k}.pe.fastq.gz" into ch_intl_assembly
+            path "diginorm.C${params.diginorm_C2}k${params.diginorm_k}.se.fastq.gz" into ch_se_assembly
+
+        script:
+            """
+            normalize-by-median.py -M ${task.memory.toGiga()}e9 -p -k $params.diginorm_k -C $params.diginorm_C1 --gzip --savegraph diginorm.C${params.diginorm_C1}k${params.diginorm_k}.kh -o diginorm.C${params.diginorm_C1}k${params.diginorm_k}.pe.fastq.gz $intlreads 
+            filter-abund.py -V diginorm.C${params.diginorm_C1}k${params.diginorm_k}.kh --gzip -o diginorm.C${params.diginorm_C1}k${params.diginorm_k}.fa.mixed.fastq.gz diginorm.C${params.diginorm_C1}k${params.diginorm_k}.pe.fastq.gz 
+            extract-paired-reads.py --output-paired diginorm.C${params.diginorm_C1}k${params.diginorm_k}.fa.pe.fastq.gz --output-single diginorm.C${params.diginorm_C1}k${params.diginorm_k}.fa.se.fastq.gz diginorm.C${params.diginorm_C1}k${params.diginorm_k}.fa.mixed.fastq.gz 
+            normalize-by-median.py -M ${task.memory.toGiga()}e9 -p -C $params.diginorm_C2 -k $params.diginorm_k --savegraph normC${params.diginorm_C2}k${params.diginorm_k}.kh --gzip -o diginorm.C${params.diginorm_C2}k${params.diginorm_k}.pe.fastq.gz diginorm.C${params.diginorm_C1}k${params.diginorm_k}.fa.pe.fastq.gz 
+            normalize-by-median.py -M ${task.memory.toGiga()}e9 -C $params.diginorm_C2 -k $params.diginorm_k --loadgraph normC${params.diginorm_C2}k${params.diginorm_k}.kh --gzip -o diginorm.C${params.diginorm_C2}k${params.diginorm_k}.se.fastq.gz diginorm.C${params.diginorm_C1}k${params.diginorm_k}.fa.se.fastq.gz 
+            cp .command.log diginorm.out
+            """
+    }
+}
+else {
+    ch_intl_assembly = ch_interleaved.collect()
 }
 
 /*
@@ -356,8 +411,7 @@ else if ( params.assembler.toLowerCase() == 'megahit' ) {
         publishDir("${params.outdir}/megahit", mode: "copy")
 
         input:
-            file(fwdreads) from trimmed_fwdreads_megahit.collect()
-            file(revreads) from trimmed_revreads_megahit.collect()
+            file intlreads from ch_intl_assembly
 
         output:
             file "megahit.final.contigs.fna.gz" into ch_contigs_transdecoder
@@ -368,7 +422,7 @@ else if ( params.assembler.toLowerCase() == 'megahit' ) {
 
         script:
             """
-            megahit -t ${task.cpus} -m ${task.memory.toBytes()} -1 ${fwdreads.sort().join(',')} -2 ${revreads.sort().join(',')} > megahit.log 2>&1
+            megahit -t ${task.cpus} -m ${task.memory.toBytes()} --12 ${intlreads.join(',')} > megahit.log 2>&1
             cp megahit_out/final.contigs.fa megahit.final.contigs.fna
             pigz -p ${task.cpus} megahit.final.contigs.fna
             tar cfz megahit.tar.gz megahit_out/
@@ -385,8 +439,7 @@ else if ( params.assembler.toLowerCase() == 'rnaspades' ) {
         publishDir("${params.outdir}/rnaspades", mode: "copy")
 
         input:
-            file(fwdreads) from trimmed_fwdreads_rnaspades.collect()
-            file(revreads) from trimmed_revreads_rnaspades.collect()
+            file intlreads from ch_intl_assembly
 
         output:
             file "rnaspades.transcripts.fna.gz" into ch_contigs_transdecoder
@@ -397,7 +450,7 @@ else if ( params.assembler.toLowerCase() == 'rnaspades' ) {
 
         script:
             """
-            rnaspades.py -t ${task.cpus} -m ${task.memory.toGiga()} ${fwdreads.sort().withIndex().collect { item, index -> "--pe-1 ${index} $item"}.join(' ')} ${revreads.sort().withIndex().collect { item, index -> "--pe-2 ${index} $item"}.join(' ')} -o rnaspades_out > rnaspades.log 2>&1
+            rnaspades.py -t ${task.cpus} -m ${task.memory.toGiga()} ${intlreads.withIndex().collect { item, index -> "--pe-12 ${index} $item"}.join(' ')} -o rnaspades_out > rnaspades.log 2>&1
             sed 's/\\(>NODE_[0-9]*\\).*/\\1/' rnaspades_out/transcripts.fasta | pigz -cp ${task.cpus} > rnaspades.transcripts.fna.gz
             tar cfz rnaspades.tar.gz rnaspades_out/
             """
@@ -413,8 +466,7 @@ else if ( params.assembler.toLowerCase() == 'trinity' ) {
         publishDir("${params.outdir}/trinity", mode: "copy")
 
         input:
-            file(fwdreads) from trimmed_fwdreads_trinity.collect()
-            file(revreads) from trimmed_revreads_trinity.collect()
+            file intlreads from ch_intl_assembly
 
         output:
             file "trinity.final.contigs.fna.gz" into ch_contigs_transdecoder
@@ -425,8 +477,9 @@ else if ( params.assembler.toLowerCase() == 'trinity' ) {
 
         script:
             """
-            unpigz -c -p ${task.cpus} ${fwdreads.sort().join(' ')} > fwdreads.fastq
-            unpigz -c -p ${task.cpus} ${revreads.sort().join(' ')} > revreads.fastq
+            for f in $intlreads; do split-paired-reads.py -1 \$(basename \$f .intl.fastq.gz).R1.fastq -2 \$(basename \$f .intl.fastq.gz).R2.fastq \$f; done
+            cat *.R1.fastq > fwdreads.fastq
+            cat *.R2.fastq > revreads.fastq
             Trinity --CPU ${task.cpus} --seqType fq --max_memory ${task.memory.toGiga()}G --left fwdreads.fastq --right revreads.fastq > trinity.log 2>&1
             cp trinity_out_dir/Trinity.fasta trinity.final.contigs.fna
             pigz -p ${task.cpus} trinity.final.contigs.fna
