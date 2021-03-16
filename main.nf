@@ -284,8 +284,8 @@ if ( ! params.skip_trimming ) {
             tuple name, file(reads) from ch_read_files_trimming
 
         output:
-            file("*_1.fq.gz") into (trimmed_fwdreads_megahit, trimmed_fwdreads_rnaspades, trimmed_fwdreads_trinity)
-            file("*_2.fq.gz") into (trimmed_revreads_megahit, trimmed_revreads_rnaspades, trimmed_revreads_trinity)
+            file("*_1.fq.gz") into trimmed_fwd_reads
+            file("*_2.fq.gz") into trimmed_rev_reads
             tuple name, '*.fq.gz' into ch_read_files_bbmap
             tuple val(name), file("*.trim_galore.log") into trimming_logs
 
@@ -308,8 +308,8 @@ else {
             tuple name, file(reads) from ch_read_files_trimming
 
         output:
-            file("*_R1_untrimmed.fastq.gz") into (trimmed_fwdreads_megahit, trimmed_fwdreads_rnaspades, trimmed_fwdreads_trinity)
-            file("*_R2_untrimmed.fastq.gz") into (trimmed_revreads_megahit, trimmed_revreads_rnaspades, trimmed_revreads_trinity)
+            file("*_R1_untrimmed.fastq.gz") into (trimmed_fwd_reads, trimmed_fwd_reads, trimmed_fwd_reads)
+            file("*_R2_untrimmed.fastq.gz") into (trimmed_rev_reads, trimmed_rev_reads, trimmed_rev_reads)
             tuple name, '*.fastq.gz' into ch_read_files_bbmap
 
         """
@@ -357,8 +357,8 @@ else if ( params.assembler.toLowerCase() == 'megahit' ) {
         publishDir("${params.outdir}/megahit", mode: "copy")
 
         input:
-            file(fwdreads) from trimmed_fwdreads_megahit.toSortedList()
-            file(revreads) from trimmed_revreads_megahit.toSortedList()
+            file(fwdreads) from trimmed_fwd_reads.toSortedList()
+            file(revreads) from trimmed_rev_reads.toSortedList()
 
         output:
             file "megahit.final.contigs.fna.gz" into ch_contigs_transdecoder
@@ -386,8 +386,8 @@ else if ( params.assembler.toLowerCase() == 'rnaspades' ) {
         publishDir("${params.outdir}/rnaspades", mode: "copy")
 
         input:
-            file(fwdreads) from trimmed_fwdreads_rnaspades.toSortedList()
-            file(revreads) from trimmed_revreads_rnaspades.toSortedList()
+            file(fwdreads) from trimmed_fwd_reads.toSortedList()
+            file(revreads) from trimmed_rev_reads.toSortedList()
 
         output:
             file "rnaspades.transcripts.fna.gz" into ch_contigs_transdecoder
@@ -414,8 +414,8 @@ else if ( params.assembler.toLowerCase() == 'trinity' ) {
         publishDir("${params.outdir}/trinity", mode: "copy")
 
         input:
-            file(fwdreads) from trimmed_fwdreads_trinity.toSortedList()
-            file(revreads) from trimmed_revreads_trinity.toSortedList()
+            file(fwdreads) from trimmed_fwd_reads.toSortedList()
+            file(revreads) from trimmed_rev_reads.toSortedList()
 
         output:
             file "trinity.final.contigs.fna.gz" into ch_contigs_transdecoder
