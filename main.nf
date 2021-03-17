@@ -234,6 +234,7 @@ if ( ! params.skip_fastqc ) {
             file (mqc_custom_config) from ch_multiqc_custom_config.collect().ifEmpty([])
             file ('fastqc/*') from ch_fastqc_results.collect().ifEmpty([])
             file ('software_versions/*') from ch_software_versions_yaml.collect()
+            // Works only if this process is defined afte the bbmap_feature_count process
             //file bbmap_fc_summary from ch_bbmap_fc_summary
             file workflow_summary from ch_workflow_summary.collectFile(name: "workflow_summary_mqc.yaml")
 
@@ -783,6 +784,7 @@ process bbmap_feature_count {
         path bams from ch_bbmap_bam.collect()
 
     output:
+        // This can be parsed by MultiQC, but I'm not sure it's worth it. If so, the MultiQC process needs to be moved after this.
         path 'bbmap.fc.CDS.tsv.summary' into ch_bbmap_fc_summary
         path 'bbmap.fc.CDS.tsv.gz'      into ch_bbmap_fc
         path 'bbmap.fc.out'
