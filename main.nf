@@ -104,7 +104,12 @@ log.info nfcoreHeader()
 def summary = [:]
 if (workflow.revision) summary['Pipeline Release'] = workflow.revision
 summary['Run Name']         = custom_runName ?: workflow.runName
-// TODO nf-core: Report custom parameters here
+summary['Assembler']        = params.assembler
+summary['Annotator']        = params.annotator
+summary['EggNOG mapper']    = params.emapper ? 'Yes' : 'No'
+summary['MEGAN/RefSeq taxonomy'] = params.megan_taxonomy ? 'Yes' : 'No'
+summary['BBMap quantification']  = params.bbmap ? 'Yes' : 'No'
+summary['Summary']          = params.summary ? 'Yes' : 'No'
 summary['Data Type']        = params.single_end ? 'Single-End' : 'Paired-End'
 summary['Input']            = params.input
 summary['Max Resources']    = "$params.max_memory memory, $params.max_cpus cpus, $params.max_time time per job"
@@ -166,6 +171,7 @@ process get_software_versions {
         file 'software_versions_mqc.yaml' into ch_software_versions_yaml
         file "software_versions.csv"
 
+    // Remember to update bin/scrape_software_versions.py!!!
     script:
         """
         echo $workflow.manifest.version > v_pipeline.txt
@@ -176,7 +182,7 @@ process get_software_versions {
         trim_galore --version | grep version > v_trim_galore.txt
         megahit --version > v_megahit.txt
         rnaspades.py -v > v_rnaspades.txt
-        grep "my \\+\\\$VERSION" \$(which Trinity) |grep -v "#"|sed 's/.*"\\(.*\\)"; */\\1/' > v_trinity.txt
+        ( Trinity --version | grep "Trinity version" > v_trinity.txt || exit 0 )
         prokka -v 2> v_prokka.txt
         TransDecoder.LongOrfs --version > v_transdecoder.txt
         diamond version > v_diamond.txt
@@ -226,10 +232,9 @@ if ( ! params.skip_fastqc ) {
         input:
             file (multiqc_config) from ch_multiqc_config
             file (mqc_custom_config) from ch_multiqc_custom_config.collect().ifEmpty([])
-            // TODO nf-core: Add in log files from your new processes for MultiQC to find!
-            // I need to learn a bit about that!
             file ('fastqc/*') from ch_fastqc_results.collect().ifEmpty([])
             file ('software_versions/*') from ch_software_versions_yaml.collect()
+            //file bbmap_fc_summary from ch_bbmap_fc_summary
             file workflow_summary from ch_workflow_summary.collectFile(name: "workflow_summary_mqc.yaml")
 
         output:
@@ -241,7 +246,6 @@ if ( ! params.skip_fastqc ) {
             rtitle = custom_runName ? "--title \"$custom_runName\"" : ''
             rfilename = custom_runName ? "--filename " + custom_runName.replaceAll('\\W','_').replaceAll('_+','_') + "_multiqc_report" : ''
             custom_config_file = params.multiqc_config ? "--config $mqc_custom_config" : ''
-            // TODO nf-core: Specify which MultiQC modules to use with -m for a faster run time
             """
             multiqc -f $rtitle $rfilename $custom_config_file .
             """
@@ -779,7 +783,8 @@ process bbmap_feature_count {
         path bams from ch_bbmap_bam.collect()
 
     output:
-        path 'bbmap.fc.CDS.tsv.gz' into ch_bbmap_fc
+        path 'bbmap.fc.CDS.tsv.summary' into ch_bbmap_fc_summary
+        path 'bbmap.fc.CDS.tsv.gz'      into ch_bbmap_fc
         path 'bbmap.fc.out'
 
     script:
