@@ -33,10 +33,8 @@ The pipeline is built using [Nextflow](https://www.nextflow.io), a workflow tool
 
 4. Start running your own analysis!
 
-    <!-- TODO nf-core: Update the example "typical command" below used to run the pipeline -->
-
     ```bash
-    nextflow run nf-core/metatdenovo -profile <docker/singularity/podman/conda/institute> --input '*_R{1,2}.fastq.gz' --genome GRCh37
+    nextflow run nf-core/metatdenovo -profile <docker/singularity/podman/conda/institute> --input '*_R{1,2}.fastq.gz' --emapper --megan_taxonomy --summary
     ```
 
 See [usage docs](https://nf-co.re/metatdenovo/usage) for all of the available options when running the pipeline.
@@ -45,25 +43,34 @@ See [usage docs](https://nf-co.re/metatdenovo/usage) for all of the available op
 
 By default, the pipeline currently performs the following:
 
-<!-- TODO nf-core: Fill in short bullet-pointed list of default steps of pipeline -->
-
 * Sequencing quality control (`FastQC`)
 * Overall pipeline run summaries (`MultiQC`)
+* Read trimming (`trim_galore`)
+* Assembly (`Megahit`, `rnaSPADes` or `Trinity`)
+* ORF calling/annotation (`Prokka` or `trinotate`/`transdecoder`)
+* Quantification of ORFs (`BBMap` and `subread`)
 
 ## Documentation
 
 The nf-core/metatdenovo pipeline comes with documentation about the pipeline: [usage](https://nf-co.re/metatdenovo/usage) and [output](https://nf-co.re/metatdenovo/output).
 
-<!-- TODO nf-core: Add a brief overview of what the pipeline does and how it works -->
+Starting from Illumina sequence reads, the pipeline performs assembly -- using `Megahit`, `rnaSPADes` or `Trinity` -- after trimming and, optionally, digital normalization of reads.
+The assembly is followed by annotation by `Prokka` or ORF calling with `transdecoder` (the former (potentially) better suited for bacterial transcriptomes, the latter for eukaryotic).
+ORFs can be annotated taxonomically by aligning them to the NCBI RefSeq database with `Diamond` and postprocessing with `Megan`.
+This will produce an NCBI taxonomy as well as a GTDB taxonomy for Bacteria and Archaea.
+The main functional annotation program in the pipeline is the `EggNOG mapper` (`--emapper`) but EggNOG and "Interpro2GO" annotations are also output as a side effect of the Diamond/Megan/RefSeq taxonomical annotation.
+
+If you specify the `--summary` parameter, tab separated files, suitable for downstream analysis will be generated, by default in `results/summary`.
+
+*Note:* Large databases are downloaded by default by the `--megan_taxonomy` and `--emapper` options.
+The processed versions of these are saved in the output directory structure (by default `results/refseq/refseq_protein.dmnd`, `results/ncbi_taxonomy/ncbi_taxonomy.tsv.gz` and `results/eggnogdb` respectively) and can be used in the later runs of the pipeline by specifying the `--refseq_dmnd`, `--ncbitaxonomy` and `--eggnogdb` parameters with appropriate arguments (e.g. the paths given in this sentence).
 
 ## Credits
 
-nf-core/metatdenovo was originally written by daniel.lundin@lnu.se.
+nf-core/metatdenovo was originally written by daniel.lundin@lnu.se and emelie.nilsson@lnu.se.
 
 We thank the following people for their extensive assistance in the development
 of this pipeline:
-
-<!-- TODO nf-core: If applicable, make list of people who have also contributed -->
 
 ## Contributions and Support
 
