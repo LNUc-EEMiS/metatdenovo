@@ -16,16 +16,16 @@ dependencies:
   - bioconda::multiqc=1.8
   - conda-forge::r-markdown=1.1
   - conda-forge::r-base=3.6.3
-  - bioconda::cutadapt=3.2
+  - bioconda::cutadapt=3.3
   - bioconda::trim-galore=0.6.6
-  - conda-forge::pigz=2.3.4
+  - conda-forge::pigz=2.5
   - bioconda::trinity=2.9.1
   - bioconda::transdecoder=5.5.0
   - bioconda::megahit=1.2.9
-  - bioconda::diamond=2.0.7
+  - bioconda::diamond=2.0.8
   - bioconda::megan=6.12.3
   - bioconda::prokka=1.14.6
-  - bioconda::blast=2.10.1
+  - bioconda::blast=2.11.0
   - unzip=6.0
   - agbiome::bbtools=37.62
   - bioconda::samtools=1.11
@@ -37,5 +37,5 @@ dependencies:
   - r::r-stringr=1.4.0
   - r::r-r.utils=2.8.0
   - r::r-tidyr=0.8.3
-  - bioconda::spades=3.14.1
+  - bioconda::spades=3.15.0
   - bioconda::khmer=3.0.0a3
