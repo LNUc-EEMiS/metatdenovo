@@ -19,6 +19,7 @@ regexes = {
     'Prokka': ['v_prokka.txt', r"prokka (.*)"],
     'TransDecoder': ['v_transdecoder.txt', r"TransDecoder.LongOrfs (.*)"],
     'Diamond': ['v_diamond.txt', r"diamond version (.*)"],
+    'khmer': ['v_khmer.txt', r"khmer (.*)"],
     'R': ['v_R.txt', r"R version ([0-9.]+).*"],
 }
 results = OrderedDict()
