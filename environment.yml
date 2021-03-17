@@ -8,12 +8,12 @@ channels:
   - agbiome
   - r
 dependencies:
-  - conda-forge::python=3.7.9
-  - conda-forge::markdown=3.3.3
+  - conda-forge::python=3.7.10
+  - conda-forge::markdown=3.3.4
   - conda-forge::pymdown-extensions=8.1.1
-  - conda-forge::pygments=2.7.4
+  - conda-forge::pygments=2.8.1
   - bioconda::fastqc=0.11.9
-  - bioconda::multiqc=1.8
+  - bioconda::multiqc=1.10
   - conda-forge::r-markdown=1.1
   - conda-forge::r-base=3.6.3
   - bioconda::cutadapt=3.3
@@ -33,7 +33,7 @@ dependencies:
   - conda-forge::r-optparse=1.6.6
   - conda-forge::r-data.table=1.14.0
   - conda-forge::r-dtplyr=1.1.0
-  - conda-forge::r-dplyr=1.0.4
+  - conda-forge::r-dplyr=1.0.5
   - r::r-stringr=1.4.0
   - r::r-r.utils=2.8.0
   - r::r-tidyr=0.8.3
