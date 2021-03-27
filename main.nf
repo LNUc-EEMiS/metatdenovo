@@ -530,7 +530,7 @@ if ( params.annotator.toLowerCase() == 'prokka' ) {
  */
 if ( params.annotator.toLowerCase() == 'trinotate' ) {
     process transdecoder {
-        label 'process_medium'
+        label 'process_long'
         publishDir("${params.outdir}/trinotate", mode: "copy")
 
         input:
