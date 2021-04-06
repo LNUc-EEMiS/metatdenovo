@@ -91,6 +91,11 @@
                     "help_text": "Run taxonomy assignment via RefSeq Diamond followed by Megan classification.",
                     "default": true
                 },
+                "kraken2_taxonomy": {
+                    "type": "boolean",
+                    "description": "Run taxonomy assignment with Kraken2. Note the kraken2db options below. Without them, the Kraken2 database will be downloaded and placed in the results directory.",
+                    "default": true
+                },
                 "bbmap": {
                     "type": "boolean",
                     "description": "UseBBMap to quantify ORs over samples",
@@ -154,6 +159,11 @@
                 "ncbitaxonomy_targz": {
                     "type": "string",
                     "description": "NCBI's 'taxdump.tar.gz'. Default 'https://ftp.ncbi.nlm.nih.gov/pub/taxonomy/taxdump.tar.gz'.",
+                    "help_text": ""
+                },
+                "kraken2db": {
+                    "type": "string",
+                    "description": "Directory with Kraken2 database; a result of calling kraken2-build --standard dir",
                     "help_text": ""
                 },
                 "gtdb_taxonomy": {

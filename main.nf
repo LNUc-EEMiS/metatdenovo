@@ -503,6 +503,7 @@ if ( params.annotator.toLowerCase() == 'prokka' ) {
             file 'prokka/*.err.gz'
             file 'prokka/*.faa.gz' into ch_emapper
             file 'prokka/*.faa.gz' into ch_diamond_refseq
+            file 'prokka/*.faa.gz' into ch_kraken2orfs
             file 'prokka/*.ffn.gz'
             file 'prokka/*.fna.gz'
             file 'prokka/*.fsa.gz'
@@ -541,7 +542,7 @@ if ( params.annotator.toLowerCase() == 'trinotate' ) {
             file '*.transdecoder.faa.gz'  into ch_diamond_refseq
             file '*.transdecoder.gff3.gz' into ch_gff_bbmap
             file '*.transdecoder.bed.gz'
-            file '*.transdecoder.fna.gz'
+            file '*.transdecoder.fna.gz'  into ch_kraken2orfs
             val  'ID'                     into ch_id_bbmap
 
         script:
@@ -607,7 +608,7 @@ if ( params.emapper ) {
 }
 
 /*
- * STEP 7 - Taxonomic annotation with Diamond/RefSeq and MEGAN.
+ * STEP 7a - Taxonomic annotation with Diamond/RefSeq and MEGAN.
  */
 if ( params.megan_taxonomy ) {
 
@@ -735,6 +736,42 @@ if ( params.megan_taxonomy ) {
             /opt/conda/envs/nf-core-metatdenovo-1.0dev/opt/megan-6.12.3/tools/daa2info -i $daa -r2c Taxonomy    | gzip -c > ${daa.toString() - '.daa'}.reads2taxonids.tsv.gz
             /opt/conda/envs/nf-core-metatdenovo-1.0dev/opt/megan-6.12.3/tools/daa2info -i $daa -r2c EGGNOG      | gzip -c > ${daa.toString() - '.daa'}.reads2eggnogs.tsv.gz
             /opt/conda/envs/nf-core-metatdenovo-1.0dev/opt/megan-6.12.3/tools/daa2info -i $daa -r2c INTERPRO2GO | gzip -c > ${daa.toString() - '.daa'}.reads2ip2go.tsv.gz
+            """
+    }
+}
+/*
+ * STEP 7b - Taxonomic annotation with Kraken2
+ */
+if ( params.kraken2taxonomy ) {
+    if ( ! params.kraken2db ) {
+        process build_kraken2db {
+            label 'process_high'
+            publishDir("${params.outdir}/kraken2", mode: "copy")
+
+            output:
+                file '*.k2d' into ch_kraken2db
+
+            script:
+                """
+                kraken2-build --standard --threads ${task.cpus} --db .
+                """
+        }
+    }
+    else {
+        ch_kraken2db = Channel.fromPath("${params.kraken2db}/*.k2d")
+    }
+
+    process kraken2 {
+        label 'process_high'
+        publishDir("${params.outdir}/kraken2", mode: "copy")
+
+        input:
+            path orfs from ch_kraken2orfs
+            path k2db from ch_kraken2db
+
+        script:
+            """
+            kraken2 --threads ${task.cpus} --db . $orfs
             """
     }
 }
