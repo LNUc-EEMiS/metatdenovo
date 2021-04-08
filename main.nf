@@ -769,7 +769,7 @@ if ( params.eukulele ) {
         script:
             """
             unpigz -cp ${task.cpus} $faafile > metat.faa
-            EUKulele -m mets ${params.eukulele_dbdir ? "--reference_dir params.eukulele_dbdir" : ' '} --CPUs ${task.cpus} --sample_dir . || rc=\$? 
+            EUKulele -m mets ${params.eukulele_dbdir ? "--reference_dir ${params.eukulele_dbdir}" : ' '} --CPUs ${task.cpus} --sample_dir . || rc=\$? 
             # EUKulele sometimes exits with 1, despite finishing OK, so we keep the return code and exit with 0 if 1 or lower
             echo "EUKulele done, rc: \$rc"
             pigz -p ${task.cpus} output/mets_full/diamond/metat.diamond.out
