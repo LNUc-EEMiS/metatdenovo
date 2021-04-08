@@ -3,8 +3,9 @@ LABEL authors="daniel.lundin@lnu.se" \
       description="Docker image containing all software requirements for the nf-core/metatdenovo pipeline"
 
 # Install the conda environment
+RUN conda install -c conda-forge mamba
 COPY environment.yml /
-RUN conda env create --quiet -f /environment.yml && conda clean -a
+RUN mamba env create --quiet -f /environment.yml && mamba clean -a
 
 # Add conda installation dir to PATH (instead of doing 'conda activate')
 ENV PATH /opt/conda/envs/nf-core-metatdenovo-1.0dev/bin:$PATH
@@ -16,6 +17,8 @@ RUN conda env export --name nf-core-metatdenovo-1.0dev > nf-core-metatdenovo-1.0
 RUN apt-get update
 RUN apt-get -y install gcc
 RUN pip install eggnog-mapper==2.0.8.post2
+
+RUN pip install EUKulele
 
 # Instruct R processes to use these empty files instead of clashing with a local version
 RUN touch .Rprofile

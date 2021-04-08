@@ -18,6 +18,8 @@ regexes = {
     'featureCounts': ['v_featureCounts.txt', r"featureCounts v(.*)"],
     'Prokka': ['v_prokka.txt', r"prokka (.*)"],
     'TransDecoder': ['v_transdecoder.txt', r"TransDecoder.LongOrfs (.*)"],
+    'EGGNOG-mapper': [ 'v_emapper.txt', r"emapper-([^ ]*) .*" ],
+    'EUKulele': [ 'v_eukulele.txt', r"The current EUKulele version is (.*)" ],
     'Diamond': ['v_diamond.txt', r"diamond version (.*)"],
     'R': ['v_R.txt', r"R version ([0-9.]+).*"],
 }

@@ -42,6 +42,14 @@ if ( ! ANNOTATORS[params.annotator.toLowerCase()] ) {
     exit 1
 }
 
+// Create a channel for the params.eukulele_dbdir if set, to make sure it's mounted
+if ( params.eukulele_dbdir ) {
+    ch_eukulele_dbdir = Channel.fromPath(params.eukulele_dbdir)
+}
+else {
+    ch_eukulele_dbdir = Channel.fromPath('.')
+}
+
 // Turn bbmap false when skip_bbmap set to true, else keep the value
 params.bbmap = params.skip_bbmap ? false : params.bbmap
 
@@ -184,6 +192,8 @@ process get_software_versions {
         featureCounts -v 2>&1|grep feature > v_featureCounts.txt
         R --version|grep '^R version' > v_R.txt
         normalize-by-median.py --version 2>&1|grep ^khmer > v_khmer.txt
+        EUKulele --version | grep 'The current' > v_eukulele.txt
+        emapper.py --version | grep '^emapper' > v_emapper.txt
         scrape_software_versions.py &> software_versions_mqc.yaml
         """
 }
@@ -503,6 +513,7 @@ if ( params.annotator.toLowerCase() == 'prokka' ) {
             file 'prokka/*.err.gz'
             file 'prokka/*.faa.gz' into ch_emapper
             file 'prokka/*.faa.gz' into ch_diamond_refseq
+            file 'prokka/*.faa.gz' into ch_eukulele
             file 'prokka/*.ffn.gz'
             file 'prokka/*.fna.gz'
             file 'prokka/*.fsa.gz'
@@ -539,6 +550,7 @@ if ( params.annotator.toLowerCase() == 'trinotate' ) {
         output:
             file '*.transdecoder.faa.gz'  into ch_emapper
             file '*.transdecoder.faa.gz'  into ch_diamond_refseq
+            file '*.transdecoder.faa.gz'  into ch_eukulele
             file '*.transdecoder.gff3.gz' into ch_gff_bbmap
             file '*.transdecoder.bed.gz'
             file '*.transdecoder.fna.gz'
@@ -607,7 +619,7 @@ if ( params.emapper ) {
 }
 
 /*
- * STEP 7 - Taxonomic annotation with Diamond/RefSeq and MEGAN.
+ * STEP 7a - Taxonomic annotation with Diamond/RefSeq and MEGAN.
  */
 if ( params.megan_taxonomy ) {
 
@@ -735,6 +747,33 @@ if ( params.megan_taxonomy ) {
             /opt/conda/envs/nf-core-metatdenovo-1.0dev/opt/megan-6.12.3/tools/daa2info -i $daa -r2c Taxonomy    | gzip -c > ${daa.toString() - '.daa'}.reads2taxonids.tsv.gz
             /opt/conda/envs/nf-core-metatdenovo-1.0dev/opt/megan-6.12.3/tools/daa2info -i $daa -r2c EGGNOG      | gzip -c > ${daa.toString() - '.daa'}.reads2eggnogs.tsv.gz
             /opt/conda/envs/nf-core-metatdenovo-1.0dev/opt/megan-6.12.3/tools/daa2info -i $daa -r2c INTERPRO2GO | gzip -c > ${daa.toString() - '.daa'}.reads2ip2go.tsv.gz
+            """
+    }
+}
+
+if ( params.eukulele ) {
+    process eukulele {
+        label 'process_high'
+        publishDir("${params.outdir}/eukulele", mode: "copy")
+
+        input:
+            path faafile from ch_eukulele
+            path db      from ch_eukulele_dbdir
+
+        output:
+            path 'output/taxonomy_estimation/metat-estimated-taxonomy.out' into ch_eukulele_taxonomy
+            path 'output/taxonomy_counts/output_all_domain_counts.csv'
+            path 'output/log/*'
+            path 'output/mets_full/diamond/metat.diamond.out.gz'
+
+        script:
+            """
+            unpigz -cp ${task.cpus} $faafile > metat.faa
+            EUKulele -m mets ${params.eukulele_dbdir ? "--reference_dir params.eukulele_dbdir" : ' '} --CPUs ${task.cpus} --sample_dir . || rc=\$? 
+            # EUKulele sometimes exits with 1, despite finishing OK, so we keep the return code and exit with 0 if 1 or lower
+            echo "EUKulele done, rc: \$rc"
+            pigz -p ${task.cpus} output/mets_full/diamond/metat.diamond.out
+            if [ \$rc -le 1 ]; then exit 0; else exit \$rc; fi
             """
     }
 }
@@ -934,6 +973,30 @@ if ( params.summary ) {
                   rename(ncbi_tax_id = tax_id) %>%
                   as.data.table() %>%
                   fwrite('megan_refseq_gtdb_taxonomy.tsv.gz', sep = '\t', row.names = FALSE)
+                """
+        }
+    }
+    if ( params.eukulele ) {
+        process format_eukulele {
+            label 'process_medium'
+            publishDir("${params.outdir}/summary", mode: "copy")
+
+            input:
+                path euktax from ch_eukulele_taxonomy
+
+            output:
+                path "eukulele_${params.eukulele}.tsv"
+
+            script:
+                """
+                #!/usr/bin/env Rscript
+                library(dplyr, warn.conflicts = FALSE)
+                library(tidyr)
+                read.delim("$euktax", sep = '\t') %>%
+                  select(-X) %>%
+                  rename(orf = transcript_name, rank = classification_level, taxon = classification) %>%
+                  separate(full_classification, c('domain', 'kingdom', 'phylum', 'class', 'order', 'family', 'genus', 'species'), fill = 'right', sep = '; ') %>%
+                  write.table("eukulele_${params.eukulele}.tsv", sep = '\t', quote = FALSE, row.names = FALSE, na = "")
                 """
         }
     }

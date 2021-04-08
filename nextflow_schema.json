@@ -91,6 +91,11 @@
                     "help_text": "Run taxonomy assignment via RefSeq Diamond followed by Megan classification.",
                     "default": true
                 },
+                "eukulele": {
+                    "type": "string",
+                    "description": "Run taxonomy assignment with EUKulele using the specified database, 'mmetsp', 'phylodb', 'eukzoo' or 'eukprot'.",
+                    "default": "mmetsp"
+                },
                 "bbmap": {
                     "type": "boolean",
                     "description": "UseBBMap to quantify ORs over samples",
@@ -155,6 +160,10 @@
                     "type": "string",
                     "description": "NCBI's 'taxdump.tar.gz'. Default 'https://ftp.ncbi.nlm.nih.gov/pub/taxonomy/taxdump.tar.gz'.",
                     "help_text": ""
+                },
+                "eukulele_dbdir": [
+                    "type": "string",
+                    "description": "Directory where EUKulele databases are stored. If this is not specified, databases will be downloaded to the work directory only, and lost."
                 },
                 "gtdb_taxonomy": {
                     "type": "string",
