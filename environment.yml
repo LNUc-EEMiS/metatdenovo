@@ -39,3 +39,4 @@ dependencies:
   - r::r-tidyr=0.8.3
   - bioconda::spades=3.14.1
   - bioconda::khmer=3.0.0a3
+  - zenodo_get

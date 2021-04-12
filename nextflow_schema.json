@@ -93,7 +93,7 @@
                 },
                 "eukulele": {
                     "type": "string",
-                    "description": "Run taxonomy assignment with EUKulele using the specified database, 'mmetsp', 'phylodb', 'eukzoo' or 'eukprot'.",
+                    "description": "Run taxonomy assignment with EUKulele using the specified database, 'mmetsp', 'phylodb', 'eukzoo' or 'eukprot' ('eukprot' currently not working).",
                     "default": "mmetsp"
                 },
                 "bbmap": {
