@@ -762,14 +762,14 @@ if ( params.eukulele ) {
 
         output:
             path 'output/taxonomy_estimation/metat-estimated-taxonomy.out' into ch_eukulele_taxonomy
-            path 'output/taxonomy_counts/output_all_domain_counts.csv'
+            path 'output/taxonomy_counts/output_all_*_counts.csv'
             path 'output/log/*'
             path 'output/mets_full/diamond/metat.diamond.out.gz'
 
         script:
             """
             unpigz -cp ${task.cpus} $faafile > metat.faa
-            EUKulele -m mets ${params.eukulele_dbdir ? "--reference_dir ${params.eukulele_dbdir}" : ' '} --CPUs ${task.cpus} --sample_dir . || rc=\$? 
+            EUKulele -d ${params.eukulele} -m mets ${params.eukulele_dbdir ? "--reference_dir ${params.eukulele_dbdir}" : ' '} --CPUs ${task.cpus} --sample_dir . || rc=\$? 
             # EUKulele sometimes exits with 1, despite finishing OK, so we keep the return code and exit with 0 if 1 or lower
             echo "EUKulele done, rc: \$rc"
             pigz -p ${task.cpus} output/mets_full/diamond/metat.diamond.out
