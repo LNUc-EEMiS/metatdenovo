@@ -794,7 +794,9 @@ process bbmap {
         tuple name, file(reads) from ch_read_files_bbmap
 
     output:
-        path "${name}.bbmap.bam" into ch_bbmap_bam
+        path "${name}.bbmap.bam" into ch_bbmap_bam_fc
+        tuple name, file("${name}.bbmap.bam") into ch_bbmap_bam_fs
+        tuple name, file("${name}.bbmap.bam") into ch_bbmap_bam_is
         path "${name}.bbmap.out"
         //path '*.bai'
 
@@ -815,7 +817,7 @@ process bbmap_feature_count {
     input:
         val  id   from ch_id_bbmap
         path gff  from ch_gff_bbmap
-        path bams from ch_bbmap_bam.collect()
+        path bams from ch_bbmap_bam_fc.collect()
 
     output:
         path 'bbmap.fc.CDS.tsv.gz' into ch_bbmap_fc
@@ -829,14 +831,83 @@ process bbmap_feature_count {
         """
 }
 
+process bbmap_flagstat {
+    tag "$name"
+    label 'process_medium'
+    publishDir("${params.outdir}/bbmap", mode: "copy")
+
+    input:
+        tuple name, file(bam) from ch_bbmap_bam_fs
+
+    output:
+        path '*.flagstat' into ch_bbmap_fs
+
+    script:
+        """
+        samtools flagstat $bam > ${name}.flagstat
+        """
+}
+
+process bbmap_idxstat {
+    tag "$name"
+    label 'process_medium'
+    publishDir("${params.outdir}/bbmap", mode: "copy")
+
+    input:
+        tuple name, file(bam) from ch_bbmap_bam_is
+
+    output:
+        path '*.idxstat.gz' into ch_bbmap_is
+
+    script:
+        """
+        samtools idxstat $bam | gzip -c > ${name}.idxstat.gz
+        """
+}
+
 /*
  * STEP 9 - make summary tables
  */
 
 if ( params.summary ) {
     if ( params.bbmap ) {
-        process sum_bbmap_counts {
+        // Summarise overall mapping to contigs from idxstats files
+        process sum_bbmap {
             label 'process_medium'
+            publishDir("${params.outdir}/summary", mode: "copy")
+
+            input:
+                path idxs from ch_bbmap_is.collect()
+
+            output:
+                path 'bbmap_idxstats.tsv.gz'
+                path 'bbmap_overall.tsv.gz'
+
+            script:
+                """
+                #!/usr/bin/env Rscript
+                library(data.table)
+                library(dtplyr)
+                library(dplyr, warn.conflicts = FALSE)
+                setDTthreads($task.cpus)
+                idxst <- data.table(seqname = character(), seqlen = integer(), n_mapped = integer(), n_unmapped = integer(), sample = character())
+                for ( f in c('${idxs.join("','")}') ) {
+                    s <- sub('.idxstat.gz', '', f)
+                    t <- fread(f, col.names = c('seqname', 'seqlen', 'n_mapped', 'n_unmapped'))
+                    t\$sample <- s
+                    idxst <- funion(idxst, t)
+                }
+                fwrite(idxst, 'bbmap_idxstats.tsv.gz', sep = '\t', row.names = FALSE, quote = FALSE)
+                lazy_dt(idxst) %>%
+                  group_by(sample) %>% summarise(n_mapped = sum(n_mapped), n_unmapped = sum(n_unmapped)) %>% ungroup() %>%
+                  as.data.table() %>%
+                  fwrite('bbmap_overall.tsv.gz', sep = '\t', row.names = FALSE, quote = FALSE)
+                """
+        }
+
+        // Summarise ORF counts
+        process sum_bbmap_counts {
+            label 'process_high'
             publishDir("${params.outdir}/summary", mode: "copy")
 
             input:
