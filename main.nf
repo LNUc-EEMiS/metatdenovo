@@ -873,7 +873,7 @@ if ( params.summary ) {
     if ( params.bbmap ) {
         // Summarise overall mapping to contigs from idxstats files
         process sum_bbmap {
-            label 'process_medium'
+            label 'process_high'
             publishDir("${params.outdir}/summary", mode: "copy")
 
             input:
