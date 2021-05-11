@@ -967,7 +967,7 @@ if ( params.summary ) {
                 path ncbi_taxflat from ch_ncbi_taxonomy
 
             output:
-                path 'megan_refseq_ncbi_taxonomy.tsv.gz'
+                path 'megan_refseq_ncbi_taxonomy.tsv.gz' into ch_taxonomy
 
             script:
                 """
@@ -1057,7 +1057,7 @@ if ( params.summary ) {
                 path euktax from ch_eukulele_taxonomy
 
             output:
-                path "eukulele_${params.eukulele}.tsv"
+                path "eukulele_${params.eukulele}.tsv" into ch_taxonomy
 
             script:
                 """
@@ -1071,6 +1071,20 @@ if ( params.summary ) {
                   write.table("eukulele_${params.eukulele}.tsv", sep = '\t', quote = FALSE, row.names = FALSE, na = "")
                 """
         }
+    }
+
+    if ( ! params.ncbitaxonomy && ! params.eukulele ) {
+        process no_taxonomy {
+            label 'process_low'
+
+            output:
+                path "no_taxonomy.tsv" into ch_taxonomy
+
+            script:
+                """
+                echo "orf	rank	domain	kingdom	phylum	class	order	family	genus	species	taxon	max_pid ambiguous" > no_taxonomy.tsv
+                """
+	}
     }
 
     if ( params.emapper ) {
@@ -1122,6 +1136,7 @@ if ( params.summary ) {
             path total_reads    from ch_total_reads
             path bbmap_overall  from ch_bbmap_overall
             path bbmap_counts   from ch_bbmap_counts
+            path tax_stats      from ch_taxonomy
 
         output:
             path 'overall_stats.tsv'
@@ -1133,15 +1148,22 @@ if ( params.summary ) {
             library(dtplyr)
             library(dplyr, warn.conflicts = FALSE)
 
+	    gene_stats <- fread("$bbmap_counts")
+
             fread("$total_reads", col.names = c('sample', 'n_qc_reads')) %>%
                 lazy_dt() %>%
                 inner_join(fread("$bbmap_overall") %>% lazy_dt() %>% select(-n_unmapped), by = 'sample') %>%
                 rename(n_mapped2contigs = n_mapped) %>%
                 inner_join(
-                    fread("$bbmap_counts") %>% lazy_dt() %>%
-                        group_by(sample) %>% summarise(n_mapped2genes = sum(count)) %>% ungroup(),
+                    lazy_dt(gene_stats) %>% group_by(sample) %>% summarise(n_mapped2genes = sum(count)) %>% ungroup(),
                     by = 'sample'
                 ) %>%
+		left_join(
+		    lazy_dt(gene_stats) %>% rename(orf = Geneid) %>%
+			semi_join(fread("$tax_stats") %>% lazy_dt(), by = 'orf') %>%
+			group_by(sample) %>% summarise(n_mapped2taxa = sum(count)) %>% ungroup(),
+		    by = 'sample'
+		) %>%
                 as.data.table() %>%
                 fwrite('overall_stats.tsv', sep = '\t')
             """
