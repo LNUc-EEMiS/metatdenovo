@@ -1141,7 +1141,7 @@ if ( params.summary ) {
     }
 
     process sum_success_rate {
-        label 'process_low'
+        label 'process_medium'
         publishDir("${params.outdir}/summary", mode: "copy")
 
         input:
@@ -1160,6 +1160,8 @@ if ( params.summary ) {
             library(data.table)
             library(dtplyr)
             library(dplyr, warn.conflicts = FALSE)
+
+	    setDTthreads($task.cpus)
 
 	    gene_stats <- fread("$bbmap_counts")
 
