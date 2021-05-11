@@ -1096,7 +1096,7 @@ if ( params.summary ) {
                 path emapperannots from ch_emapper_annots
 
             output:
-                path 'eggnog_annotations.tsv.gz'
+                path 'eggnog_annotations.tsv.gz' into ch_function
 
             script:
                 """
@@ -1111,6 +1111,18 @@ if ( params.summary ) {
                     fwrite('eggnog_annotations.tsv.gz', sep = '\t', row.names = FALSE)
                 """
         }
+    } else {
+	process no_function {
+            label 'process_low'
+
+            output:
+                path 'no_function.tsv.gz' into ch_function
+
+	    script:
+		"""
+		echo "orf" > no_function.tsv.gz
+		"""
+	}
     }
 
     process collect_flagstats {
@@ -1137,6 +1149,7 @@ if ( params.summary ) {
             path bbmap_overall  from ch_bbmap_overall
             path bbmap_counts   from ch_bbmap_counts
             path tax_stats      from ch_taxonomy
+	    path func_stats	from ch_function
 
         output:
             path 'overall_stats.tsv'
@@ -1162,6 +1175,12 @@ if ( params.summary ) {
 		    lazy_dt(gene_stats) %>% rename(orf = Geneid) %>%
 			semi_join(fread("$tax_stats") %>% lazy_dt(), by = 'orf') %>%
 			group_by(sample) %>% summarise(n_mapped2taxa = sum(count)) %>% ungroup(),
+		    by = 'sample'
+		) %>%
+		left_join(
+		    lazy_dt(gene_stats) %>% rename(orf = Geneid) %>%
+			semi_join(fread("$func_stats") %>% lazy_dt(), by = 'orf') %>%
+			group_by(sample) %>% summarise(n_mapped2funcs = sum(count)) %>% ungroup(),
 		    by = 'sample'
 		) %>%
                 as.data.table() %>%
