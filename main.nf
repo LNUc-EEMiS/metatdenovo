@@ -246,6 +246,7 @@ if ( ! params.skip_fastqc ) {
             file "*multiqc_report.html" into ch_multiqc_report
             file "*_data"
             file "multiqc_plots"
+            file "multiqc_data/multiqc_general_stats.txt" into ch_multiqc_general_stats
 
         script:
             rtitle = custom_runName ? "--title \"$custom_runName\"" : ''
@@ -881,7 +882,7 @@ if ( params.summary ) {
 
             output:
                 path 'bbmap_idxstats.tsv.gz'
-                path 'bbmap_overall.tsv.gz'
+                path 'bbmap_overall.tsv.gz'  into ch_bbmap_overall
 
             script:
                 """
@@ -914,7 +915,7 @@ if ( params.summary ) {
                 path bbmapfc from ch_bbmap_fc
 
             output:
-                path 'bbmap_counts.tsv.gz'
+                path 'bbmap_counts.tsv.gz' into ch_bbmap_counts
 
             script:
                 """
@@ -1096,6 +1097,54 @@ if ( params.summary ) {
                     fwrite('eggnog_annotations.tsv.gz', sep = '\t', row.names = FALSE)
                 """
         }
+    }
+
+    process collect_flagstats {
+        label 'process_low'
+
+        input:
+            path flagstats from ch_bbmap_fs.collect()
+
+        output:
+            path 'total_reads.tsv' into ch_total_reads
+
+        script:
+            """
+            grep 'in total' $flagstats |  sed 's/ + .*//' | sed 's:.*/::' | sed 's/.flagstat:/\t/' > total_reads.tsv
+            """
+    }
+
+    process sum_success_rate {
+        label 'process_low'
+        publishDir("${params.outdir}/summary", mode: "copy")
+
+        input:
+            path total_reads    from ch_total_reads
+            path bbmap_overall  from ch_bbmap_overall
+            path bbmap_counts   from ch_bbmap_counts
+
+        output:
+            path 'overall_stats.tsv'
+
+        script:
+            """
+            #!/usr/bin/env Rscript
+            library(data.table)
+            library(dtplyr)
+            library(dplyr, warn.conflicts = FALSE)
+
+            fread("$total_reads", col.names = c('sample', 'n_qc_reads')) %>%
+                lazy_dt() %>%
+                inner_join(fread("$bbmap_overall") %>% lazy_dt() %>% select(-n_unmapped), by = 'sample') %>%
+                rename(n_mapped2contigs = n_mapped) %>%
+                inner_join(
+                    fread("$bbmap_counts") %>% lazy_dt() %>%
+                        group_by(sample) %>% summarise(n_mapped2genes = sum(count)) %>% ungroup(),
+                    by = 'sample'
+                ) %>%
+                as.data.table() %>%
+                fwrite('overall_stats.tsv', sep = '\t')
+            """
     }
 }
 
