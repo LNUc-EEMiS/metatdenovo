@@ -59,7 +59,7 @@
                 },
                 "annotator": {
                     "type": "string",
-                    "description": "Main annotator to call ORFs and annotate contigs, either 'prokka' or 'trinotate' (the latter only partly supported)."
+                    "description": "Main annotator to call ORFs and annotate contigs, either 'prodigal', 'prokka' (has problems on larger assemblies; if it fails, use prodigal) or 'trinotate' (the latter only partly supported)."
                 },
                 "diginorm": {
                     "type": "boolean",

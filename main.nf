@@ -33,8 +33,8 @@ if ( ! params.assembly && ! ASSEMBLERS[params.assembler.toLowerCase()] ) {
 }
 
 // Annotation/gene calling program
-ANNOTATORS = [ prokka: true, trinotate: true ]
-params.annotator = '' // Set to prokka or trinotate to be meaningful
+ANNOTATORS = [ prokka: true, prodigal: true, trinotate: true ]
+params.annotator = '' // Set to prokka, prodigal or trinotate to be meaningful
 
 // Modify when we start to support starting from an already finished assembly
 if ( ! ANNOTATORS[params.annotator.toLowerCase()] ) {
@@ -218,6 +218,7 @@ process get_software_versions {
         rnaspades.py -v > v_rnaspades.txt
         grep "my \\+\\\$VERSION" \$(which Trinity) |grep -v "#"|sed 's/.*"\\(.*\\)"; */\\1/' > v_trinity.txt
         prokka -v 2> v_prokka.txt
+        prodigal -v 2>&1 | grep Prodigal > v_prodigal.txt
         TransDecoder.LongOrfs --version > v_transdecoder.txt
         diamond version > v_diamond.txt
         grep 'Last modified' \$(which bbmap.sh) > v_bbmap.txt
@@ -450,6 +451,7 @@ if ( params.assembly ) {
         output:
             path('*.gz', includeInputs: true) into ch_contigs_transdecoder
             path('*.gz', includeInputs: true) into ch_contigs_prokka
+            path('*.gz', includeInputs: true) into ch_contigs_prodigal
             path('*.gz', includeInputs: true) into ch_contigs_bbmap
 
         script:
@@ -478,6 +480,7 @@ else if ( params.assembler.toLowerCase() == 'megahit' ) {
         output:
             file "megahit.final.contigs.fna.gz" into ch_contigs_transdecoder
             file "megahit.final.contigs.fna.gz" into ch_contigs_prokka
+            file "megahit.final.contigs.fna.gz" into ch_contigs_prodigal
             file "megahit.final.contigs.fna.gz" into ch_contigs_bbmap
             file "megahit.log"
             file "megahit.tar.gz"
@@ -506,6 +509,7 @@ else if ( params.assembler.toLowerCase() == 'rnaspades' ) {
         output:
             file "rnaspades.transcripts.fna.gz" into ch_contigs_transdecoder
             file "rnaspades.transcripts.fna.gz" into ch_contigs_prokka
+            file "rnaspades.transcripts.fna.gz" into ch_contigs_prodigal
             file "rnaspades.transcripts.fna.gz" into ch_contigs_bbmap
             file "rnaspades.log"
             file "rnaspades.tar.gz"
@@ -533,6 +537,7 @@ else if ( params.assembler.toLowerCase() == 'trinity' ) {
         output:
             file "trinity.final.contigs.fna.gz" into ch_contigs_transdecoder
             file "trinity.final.contigs.fna.gz" into ch_contigs_prokka
+            file "trinity.final.contigs.fna.gz" into ch_contigs_prodigal
             file "trinity.final.contigs.fna.gz" into ch_contigs_bbmap
             file "trinity.log"
             file "trinity.tar.gz"
@@ -589,7 +594,37 @@ if ( params.annotator.toLowerCase() == 'prokka' ) {
 } 
 
 /*
- * STEP 6b ORF calling with TransDecoder.*
+ * STEP 6b Annotation with Prodigal
+ */
+if ( params.annotator.toLowerCase() == 'prodigal' ) {
+    process prodigal {
+        label 'process_medium'
+        publishDir("${params.outdir}", mode: "copy")
+
+        input:
+            file contigs from ch_contigs_prodigal
+
+        output:
+            file 'prodigal/*.faa.gz' into ch_emapper
+            file 'prodigal/*.faa.gz' into ch_diamond_refseq
+            file 'prodigal/*.faa.gz' into ch_eukulele
+            file 'prodigal/*.fna.gz'
+            file 'prodigal/*.gff.gz' into ch_gff_bbmap
+            file 'prodigal/*.log.gz'
+            file 'prodigal/*.tsv.gz'
+            val  'ID'                into ch_id_bbmap
+
+        script:
+            """
+            mkdir prodigal
+            unpigz -c -p $task.cpus $contigs | prodigal -a prodigal/prodigal_meta_orfs.faa -d prodigal/prodigal_meta_orfs.fna -f gff -o prodigal/prodigal_meta_orfs.gff -p meta -s prodigal/prodigal_meta_genes_with_scores.tsv 2>&1 > prodigal/prodigal_meta.log
+            pigz -p $task.cpus prodigal/*
+            """
+    }
+} 
+
+/*
+ * STEP 6c ORF calling with TransDecoder.*
  */
 if ( params.annotator.toLowerCase() == 'trinotate' ) {
     process transdecoder {
