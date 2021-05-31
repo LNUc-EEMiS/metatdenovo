@@ -86,25 +86,57 @@ if ( params.megan_taxonomy ) {
 /*
  * Create a channel for input read files
  */
-if (params.input_paths) {
-    if (params.single_end) {
-        Channel
-            .from(params.input_paths)
-            .map { row -> [ row[0], [ file(row[1][0], checkIfExists: true) ] ] }
-            .ifEmpty { exit 1, "params.input_paths was empty - no input files supplied" }
-            .into { ch_read_files_fastqc; ch_read_files_trimming }
+if (params.rrnafasta) {
+    Channel.empty().set { ch_read_files_trimming }
+    Channel.value(file("$params.rrnafasta")).set { ch_rrna_fasta }
+    if (params.input_paths) {
+        if (params.single_end) {
+            System.err.println("rrna_single_end_input_path")
+            Channel
+                .from(params.input_paths)
+                .map { row -> [ row[0], [ file(row[1][0], checkIfExists: true) ] ] }
+                .ifEmpty { exit 1, "params.input_paths was empty - no input files supplied" }
+                .into { ch_read_files_fastqc; ch_read_files_remove_rrna }
+        } else {
+            System.err.println("rrna_paired_end_input_path")
+            Channel
+                .from(params.input_paths)
+                .map { row -> [ row[0], [ file(row[1][0], checkIfExists: true), file(row[1][1], checkIfExists: true) ] ] }
+                .ifEmpty { exit 1, "params.input_paths was empty - no input files supplied" }
+                .into { ch_read_files_fastqc; ch_read_files_remove_rrna }
+        }
     } else {
+        System.err.println("rrna_pe_filepairs")
         Channel
-            .from(params.input_paths)
-            .map { row -> [ row[0], [ file(row[1][0], checkIfExists: true), file(row[1][1], checkIfExists: true) ] ] }
-            .ifEmpty { exit 1, "params.input_paths was empty - no input files supplied" }
-            .into { ch_read_files_fastqc; ch_read_files_trimming }
+            .fromFilePairs(params.input, size: params.single_end ? 1 : 2)
+            .ifEmpty { exit 1, "Cannot find any reads matching: ${params.input}\nNB: Path needs to be enclosed in quotes!\nIf this is single-end data, please specify --single_end on the command line." }
+            .into { ch_read_files_fastqc; ch_read_files_remove_rrna }
     }
 } else {
-    Channel
-        .fromFilePairs(params.input, size: params.single_end ? 1 : 2)
-        .ifEmpty { exit 1, "Cannot find any reads matching: ${params.input}\nNB: Path needs to be enclosed in quotes!\nIf this is single-end data, please specify --single_end on the command line." }
-        .into { ch_read_files_fastqc; ch_read_files_trimming }
+    Channel.empty().into { ch_read_files_remove_rrna; ch_rrna_fasta }
+    if (params.input_paths) {
+        if (params.single_end) {
+            System.err.println("single_end_input_path")
+            Channel
+                .from(params.input_paths)
+                .map { row -> [ row[0], [ file(row[1][0], checkIfExists: true) ] ] } 
+                .ifEmpty { exit 1, "params.input_paths was empty - no input files supplied" }
+                .into { ch_read_files_fastqc; ch_read_files_trimming }
+        } else {
+            System.err.println("pair_end_input_path")
+            Channel
+                .from(params.input_paths)
+                .map { row -> [ row[0], [ file(row[1][0], checkIfExists: true), file(row[1][1], checkIfExists: true) ] ] } 
+                .ifEmpty { exit 1, "params.input_paths was empty - no input files supplied" }
+                .into { ch_read_files_fastqc; ch_read_files_trimming }
+        }   
+    } else {
+        System.err.println("pe_filepairs")
+        Channel
+            .fromFilePairs(params.input, size: params.single_end ? 1 : 2)
+            .ifEmpty { exit 1, "Cannot find any reads matching: ${params.input}\nNB: Path needs to be enclosed in quotes!\nIf this is single-end data, please specify --single_end on the command line." }
+            .into { ch_read_files_fastqc; ch_read_files_trimming }
+    }
 }
 
 // Header log info
@@ -246,7 +278,6 @@ if ( ! params.skip_fastqc ) {
             file "*multiqc_report.html" into ch_multiqc_report
             file "*_data"
             file "multiqc_plots"
-            file "multiqc_data/multiqc_general_stats.txt" into ch_multiqc_general_stats
 
         script:
             rtitle = custom_runName ? "--title \"$custom_runName\"" : ''
@@ -285,6 +316,27 @@ process output_documentation {
  * STEP 4a: Trimming
  */
 if ( ! params.skip_trimming ) {
+    process remove_rrna {
+        label 'process_medium'
+        tag "$name"
+
+        publishDir("${params.outdir}/remove_rrna_logs/", mode: "copy", pattern: "*.bbduk.log")
+
+        when:
+            params.rrnafasta
+
+        input:
+            tuple name, file(reads) from ch_read_files_remove_rrna
+            file reference from ch_rrna_fasta
+
+        output:
+            tuple name, file("bbduk/*.fastq.gz") into ch_read_files_trimming2
+
+        """
+        bbduk.sh in1=${reads[0]} in2=${reads[1]} out1=bbduk/${reads[0]} out2=bbduk/${reads[1]} ref=$reference k=31 2>&1 > ${name}.bbduk.log
+        """
+    }
+
     process trim_galore {
         label 'process_medium'
         tag "$name"
@@ -292,7 +344,7 @@ if ( ! params.skip_trimming ) {
         publishDir("${params.outdir}/trimming_logs/", mode: "copy", pattern: "*.trim_galore.log")
 
         input:
-            tuple name, file(reads) from ch_read_files_trimming
+            tuple name, file(reads) from ch_read_files_trimming.mix(ch_read_files_trimming2)
 
         output:
             file("*_1.fq.gz") into ch_trimmed_fwd_reads
@@ -308,8 +360,7 @@ if ( ! params.skip_trimming ) {
         trim_galore --paired --fastqc --gzip --quality 20 $reads 2>&1 > ${name}.trim_galore.log
         """
     }
-} 
-else {
+} else {
     // This is perhaps not the best way, but I couldn't come up with anything else
     // that gathered all forward reads in one channel and all reverse in another.
     process skip_trimming {
@@ -317,7 +368,7 @@ else {
         tag "$name"
 
         input:
-            tuple name, file(reads) from ch_read_files_trimming
+            tuple name, file(reads) from ch_read_files_remove_rrna
 
         output:
             file("*_R1_untrimmed.fastq.gz") into ch_trimmed_fwd_reads
@@ -882,7 +933,7 @@ if ( params.summary ) {
 
             output:
                 path 'bbmap_idxstats.tsv.gz'
-                path 'bbmap_overall.tsv.gz'  into ch_bbmap_overall
+                path 'bbmap_overall.tsv.gz'
 
             script:
                 """
@@ -915,7 +966,7 @@ if ( params.summary ) {
                 path bbmapfc from ch_bbmap_fc
 
             output:
-                path 'bbmap_counts.tsv.gz' into ch_bbmap_counts
+                path 'bbmap_counts.tsv.gz'
 
             script:
                 """
@@ -967,7 +1018,7 @@ if ( params.summary ) {
                 path ncbi_taxflat from ch_ncbi_taxonomy
 
             output:
-                path 'megan_refseq_ncbi_taxonomy.tsv.gz' into ch_taxonomy
+                path 'megan_refseq_ncbi_taxonomy.tsv.gz'
 
             script:
                 """
@@ -1057,7 +1108,7 @@ if ( params.summary ) {
                 path euktax from ch_eukulele_taxonomy
 
             output:
-                path "eukulele_${params.eukulele}.tsv" into ch_taxonomy
+                path "eukulele_${params.eukulele}.tsv"
 
             script:
                 """
@@ -1073,20 +1124,6 @@ if ( params.summary ) {
         }
     }
 
-    if ( ! params.ncbitaxonomy && ! params.eukulele ) {
-        process no_taxonomy {
-            label 'process_low'
-
-            output:
-                path "no_taxonomy.tsv" into ch_taxonomy
-
-            script:
-                """
-                echo "orf	rank	domain	kingdom	phylum	class	order	family	genus	species	taxon	max_pid ambiguous" > no_taxonomy.tsv
-                """
-	}
-    }
-
     if ( params.emapper ) {
         process format_emapper_annots {
             label 'process_low'
@@ -1096,7 +1133,7 @@ if ( params.summary ) {
                 path emapperannots from ch_emapper_annots
 
             output:
-                path 'eggnog_annotations.tsv.gz' into ch_function
+                path 'eggnog_annotations.tsv.gz'
 
             script:
                 """
@@ -1111,83 +1148,6 @@ if ( params.summary ) {
                     fwrite('eggnog_annotations.tsv.gz', sep = '\t', row.names = FALSE)
                 """
         }
-    } else {
-	process no_function {
-            label 'process_low'
-
-            output:
-                path 'no_function.tsv.gz' into ch_function
-
-	    script:
-		"""
-		echo "orf" > no_function.tsv.gz
-		"""
-	}
-    }
-
-    process collect_flagstats {
-        label 'process_low'
-
-        input:
-            path flagstats from ch_bbmap_fs.collect()
-
-        output:
-            path 'total_reads.tsv' into ch_total_reads
-
-        script:
-            """
-            grep 'in total' $flagstats |  sed 's/ + .*//' | sed 's:.*/::' | sed 's/.flagstat:/\t/' > total_reads.tsv
-            """
-    }
-
-    process sum_success_rate {
-        label 'process_medium'
-        publishDir("${params.outdir}/summary", mode: "copy")
-
-        input:
-            path total_reads    from ch_total_reads
-            path bbmap_overall  from ch_bbmap_overall
-            path bbmap_counts   from ch_bbmap_counts
-            path tax_stats      from ch_taxonomy
-	    path func_stats	from ch_function
-
-        output:
-            path 'overall_stats.tsv'
-
-        script:
-            """
-            #!/usr/bin/env Rscript
-            library(data.table)
-            library(dtplyr)
-            library(dplyr, warn.conflicts = FALSE)
-
-	    setDTthreads($task.cpus)
-
-	    gene_stats <- fread("$bbmap_counts")
-
-            fread("$total_reads", col.names = c('sample', 'n_qc_reads')) %>%
-                lazy_dt() %>%
-                inner_join(fread("$bbmap_overall") %>% lazy_dt() %>% select(-n_unmapped), by = 'sample') %>%
-                rename(n_mapped2contigs = n_mapped) %>%
-                inner_join(
-                    lazy_dt(gene_stats) %>% group_by(sample) %>% summarise(n_mapped2genes = sum(count)) %>% ungroup(),
-                    by = 'sample'
-                ) %>%
-		left_join(
-		    lazy_dt(gene_stats) %>% rename(orf = Geneid) %>%
-			semi_join(fread("$tax_stats") %>% lazy_dt(), by = 'orf') %>%
-			group_by(sample) %>% summarise(n_mapped2taxa = sum(count)) %>% ungroup(),
-		    by = 'sample'
-		) %>%
-		left_join(
-		    lazy_dt(gene_stats) %>% rename(orf = Geneid) %>%
-			semi_join(fread("$func_stats") %>% lazy_dt(), by = 'orf') %>%
-			group_by(sample) %>% summarise(n_mapped2funcs = sum(count)) %>% ungroup(),
-		    by = 'sample'
-		) %>%
-                as.data.table() %>%
-                fwrite('overall_stats.tsv', sep = '\t')
-            """
     }
 }
 

@@ -10,3 +10,4 @@ testing*
 *.simg
 null/
 .*.sw?
+testdata
