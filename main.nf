@@ -279,6 +279,7 @@ if ( ! params.skip_fastqc ) {
             file "*multiqc_report.html" into ch_multiqc_report
             file "*_data"
             file "multiqc_plots"
+            file "multiqc_data/multiqc_general_stats.txt" into ch_multiqc_general_stats
 
         script:
             rtitle = custom_runName ? "--title \"$custom_runName\"" : ''
@@ -968,7 +969,7 @@ if ( params.summary ) {
 
             output:
                 path 'bbmap_idxstats.tsv.gz'
-                path 'bbmap_overall.tsv.gz'
+                path 'bbmap_overall.tsv.gz'  into ch_bbmap_overall
 
             script:
                 """
@@ -1001,7 +1002,7 @@ if ( params.summary ) {
                 path bbmapfc from ch_bbmap_fc
 
             output:
-                path 'bbmap_counts.tsv.gz'
+                path 'bbmap_counts.tsv.gz' into ch_bbmap_counts
 
             script:
                 """
@@ -1053,7 +1054,7 @@ if ( params.summary ) {
                 path ncbi_taxflat from ch_ncbi_taxonomy
 
             output:
-                path 'megan_refseq_ncbi_taxonomy.tsv.gz'
+                path 'megan_refseq_ncbi_taxonomy.tsv.gz' into ch_taxonomy
 
             script:
                 """
@@ -1143,7 +1144,7 @@ if ( params.summary ) {
                 path euktax from ch_eukulele_taxonomy
 
             output:
-                path "eukulele_${params.eukulele}.tsv"
+                path "eukulele_${params.eukulele}.tsv" into ch_taxonomy
 
             script:
                 """
@@ -1158,6 +1159,20 @@ if ( params.summary ) {
                 """
         }
     }
+ 
+    if ( ! params.ncbitaxonomy && ! params.eukulele ) {
+        process no_taxonomy {
+            label 'process_low'
+
+            output:
+                path "no_taxonomy.tsv" into ch_taxonomy
+
+            script:
+                """
+                echo "orf	rank	domain	kingdom	phylum	class	order	family	genus	species	taxon	max_pid ambiguous" > no_taxonomy.tsv
+                """
+	}
+    }
 
     if ( params.emapper ) {
         process format_emapper_annots {
@@ -1168,7 +1183,7 @@ if ( params.summary ) {
                 path emapperannots from ch_emapper_annots
 
             output:
-                path 'eggnog_annotations.tsv.gz'
+                path 'eggnog_annotations.tsv.gz' into ch_function
 
             script:
                 """
@@ -1183,6 +1198,81 @@ if ( params.summary ) {
                     fwrite('eggnog_annotations.tsv.gz', sep = '\t', row.names = FALSE)
                 """
         }
+    } else {
+	process no_function {
+            label 'process_low'
+
+            output:
+                path 'no_function.tsv.gz' into ch_function
+
+	    script:
+		"""
+		echo "orf" > no_function.tsv.gz
+		"""
+	}
+    }
+
+    process collect_flagstats {
+        label 'process_low'
+
+        input:
+            path flagstats from ch_bbmap_fs.collect()
+
+        output:
+            path 'total_reads.tsv' into ch_total_reads
+
+        script:
+            """
+            grep 'in total' $flagstats |  sed 's/ + .*//' | sed 's:.*/::' | sed 's/.flagstat:/\t/' > total_reads.tsv
+            """
+    }
+
+    process sum_success_rate {
+        label 'process_low'
+        publishDir("${params.outdir}/summary", mode: "copy")
+
+        input:
+            path total_reads    from ch_total_reads
+            path bbmap_overall  from ch_bbmap_overall
+            path bbmap_counts   from ch_bbmap_counts
+            path tax_stats      from ch_taxonomy
+	    path func_stats	from ch_function
+
+        output:
+            path 'overall_stats.tsv'
+
+        script:
+            """
+            #!/usr/bin/env Rscript
+            library(data.table)
+            library(dtplyr)
+            library(dplyr, warn.conflicts = FALSE)
+
+	    gene_stats <- fread("$bbmap_counts")
+
+            fread("$total_reads", col.names = c('sample', 'n_qc_reads')) %>%
+                lazy_dt() %>%
+                inner_join(fread("$bbmap_overall") %>% lazy_dt() %>% select(-n_unmapped), by = 'sample') %>%
+                rename(n_mapped2contigs = n_mapped) %>%
+                inner_join(
+                    lazy_dt(gene_stats) %>% group_by(sample) %>% summarise(n_mapped2genes = sum(count)) %>% ungroup(),
+                    by = 'sample'
+                ) %>%
+		left_join(
+		    lazy_dt(gene_stats) %>% rename(orf = Geneid) %>%
+			semi_join(fread("$tax_stats") %>% lazy_dt(), by = 'orf') %>%
+			group_by(sample) %>% summarise(n_mapped2taxa = sum(count)) %>% ungroup(),
+		    by = 'sample'
+		) %>%
+		left_join(
+		    lazy_dt(gene_stats) %>% rename(orf = Geneid) %>%
+			semi_join(fread("$func_stats") %>% lazy_dt(), by = 'orf') %>%
+			group_by(sample) %>% summarise(n_mapped2funcs = sum(count)) %>% ungroup(),
+		    by = 'sample'
+		) %>%
+                as.data.table() %>%
+                fwrite('overall_stats.tsv', sep = '\t')
+            """
     }
 }
 
